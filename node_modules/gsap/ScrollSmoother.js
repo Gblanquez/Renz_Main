@@ -3,10 +3,10 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 /*!
- * ScrollSmoother 3.12.4
+ * ScrollSmoother 3.12.5
  * https://gsap.com
  *
- * @license Copyright 2008-2023, GreenSock. All rights reserved.
+ * @license Copyright 2008-2024, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -646,6 +646,8 @@ export var ScrollSmoother = /*#__PURE__*/function () {
 
       (_effects = effects).push.apply(_effects, effectsToAdd);
 
+      config.refresh !== false && ScrollTrigger.refresh(); // certain effects require a refresh to work properly
+
       return effectsToAdd;
     };
 
@@ -837,7 +839,8 @@ export var ScrollSmoother = /*#__PURE__*/function () {
     mainST.getTween() && (mainST.getTween().vars.ease = vars.ease || _expo);
     this.scrollTrigger = mainST;
     vars.effects && this.effects(vars.effects === true ? "[data-" + effectsPrefix + "speed], [data-" + effectsPrefix + "lag]" : vars.effects, {
-      effectsPadding: vars.effectsPadding
+      effectsPadding: vars.effectsPadding,
+      refresh: false
     });
     vars.sections && this.sections(vars.sections === true ? "[data-section]" : vars.sections);
     existingScrollTriggers.forEach(function (st) {
@@ -991,7 +994,7 @@ export var ScrollSmoother = /*#__PURE__*/function () {
 
   return ScrollSmoother;
 }();
-ScrollSmoother.version = "3.12.4";
+ScrollSmoother.version = "3.12.5";
 
 ScrollSmoother.create = function (vars) {
   return _mainInstance && vars && _mainInstance.content() === _toArray(vars.content)[0] ? _mainInstance : new ScrollSmoother(vars);

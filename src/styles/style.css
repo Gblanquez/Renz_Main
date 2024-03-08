@@ -349,7 +349,7 @@ html.lenis {
   }
   
   .lenis.lenis-scrolling iframe {
-    pointerevents: none;
+    pointer-events: none;
   }
 
 

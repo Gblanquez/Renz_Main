@@ -1,8 +1,8 @@
 /*!
- * DrawSVGPlugin 3.12.4
+ * DrawSVGPlugin 3.12.5
  * https://gsap.com
  *
- * @license Copyright 2008-2023, GreenSock. All rights reserved.
+ * @license Copyright 2008-2024, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -201,7 +201,7 @@ _parse = function _parse(value, length, defaultStart) {
 };
 
 export var DrawSVGPlugin = {
-  version: "3.12.4",
+  version: "3.12.5",
   name: "drawSVG",
   register: function register(core) {
     gsap = core;

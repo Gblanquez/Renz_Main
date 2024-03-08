@@ -19,7 +19,7 @@
     "@unseenco/taxi": "^1.5.1",
     "barba.js": "^1.0.0",
     "dat.gui": "^0.7.9",
-    "gsap": "npm:@gsap/shockingly@^3.12.4",
+    "gsap": "npm:@gsap/shockingly@^3.12.5",
     "imagesloaded": "^5.0.0",
     "lottie-web": "^5.12.2",
     "luxon": "^3.4.4",

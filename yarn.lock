@@ -133,10 +133,10 @@ glob@^7.1.3:
     once "^1.3.0"
     path-is-absolute "^1.0.0"
 
-"gsap@npm:@gsap/shockingly@^3.12.4":
-  version "3.12.4"
-  resolved "https://npm.greensock.com/@gsap%2fshockingly/-/shockingly-3.12.4.tgz"
-  integrity sha512-3SXz2Ziu1uWY1XgZcUOmLpvq5NZ7b748A0lQtZ7f9detWLL7+IZrsdxAiZw5Q5i1twfvOeLsaK5N+r3B8QRlVw==
+"gsap@npm:@gsap/shockingly@^3.12.5":
+  version "3.12.5"
+  resolved "https://npm.greensock.com/@gsap%2fshockingly/-/shockingly-3.12.5.tgz"
+  integrity sha512-JoZp6iYvOC+wkwl8zfXSqSrYCcuzTntaULCL08YMa1vonrYcr9D0K3EUe9PNpw7FYK1chjSwjjgcw3zS/O2SWg==
 
 has@^1.0.3:
   version "1.0.3"
