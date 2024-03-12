@@ -19,7 +19,7 @@ void main(){
 
 // Hover animation
     float dist = distance(uv, hover);
-    float hoverEffect = hoverState * 10.0 * sin(dist * 10.0 + time);
+    float hoverEffect = hoverState * 10.0 * sin(dist * 10.0 + time) * 0.2;
 
     // Click animation
     float cornersProgress = mix(

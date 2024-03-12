@@ -9,8 +9,8 @@ body{
     font-weight: 300;
     font-style: normal;
     color: #fff;
-    font-size: calc(16px + (100vw - 1920px) * (16 / 1920));
-    /* font-size: 1rem; */
+    /* font-size: calc(16px + (100vw - 1920px) * (16 / 1920)); */
+    font-size: 1vw;
     text-transform: uppercase;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -18,16 +18,16 @@ body{
 }
 
 
-@media (max-width: 760px) {
+/* @media (max-width: 760px) {
     body {
-        font-size: 14px; /* Adjust as needed */
+        font-size: 14px; 
     }
-}
-@media (min-width: 2500px) {
+} */
+/* @media (min-width: 2500px) {
     body {
         font-size: 16px; 
     }
-}
+} */
 
 .navbar {
     display: flex;
@@ -222,7 +222,7 @@ figure img{
 
 .aboutWrapper{
     padding: 6rem 2rem;
-    opacity: 0;
+    /* opacity: 0; */
 }
 
 .ProjectP{
@@ -401,8 +401,8 @@ html.lenis {
 }
 
 .mainText{
-    font-size: 3.8rem;
-    max-width: 32ch;
+    font-size: 5vw;
+    max-width: 34ch;
     line-height: 0.94;
     
 }
@@ -414,12 +414,12 @@ html.lenis {
 
 .info2{
     font-weight: 300;
-    font-size: 0.75rem;
+    font-size: 0.9vw;
 }
 
 .scramble-text{
     font-weight: 300;
-    font-size: 0.75rem;
+    font-size: 0.9vw;
 }
 
 .word-wrap{
