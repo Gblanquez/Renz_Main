@@ -140,13 +140,13 @@ canvas{display: block}
 .item h2{
     font-weight: 300;
     color: #fff;
-    font-size: 0.75rem;
+    font-size: 0.8vw;
     opacity: 0;
 }
 .item p{
     font-weight: 300;
     color: #ccc;
-    font-size: 0.75rem;
+    font-size: 0.8vw;
     opacity: 0;
 }
 .item:last-child{
@@ -410,16 +410,17 @@ html.lenis {
 .ab-t{
     max-width: 56ch;
     position: relative;
+    font-size: 0.8vw;
 }
 
 .info2{
     font-weight: 300;
-    font-size: 0.9vw;
+    font-size: 0.8vw;
 }
 
 .scramble-text{
     font-weight: 300;
-    font-size: 0.9vw;
+    font-size: 0.8vw;
 }
 
 .word-wrap{
