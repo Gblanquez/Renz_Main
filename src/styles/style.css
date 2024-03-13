@@ -10,11 +10,19 @@ body{
     font-style: normal;
     color: #fff;
     /* font-size: calc(16px + (100vw - 1920px) * (16 / 1920)); */
-    font-size: 1vw;
+    font-size: 0.8vw;
     text-transform: uppercase;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+}
+
+
+@font-face {
+    font-family: 'MonoramaVariable';
+    src: url('../Monorama-Variable.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
 }
 
 
@@ -87,8 +95,11 @@ canvas{display: block}
     flex-wrap: nowrap;
     flex-direction: row;
     gap: 1rem;
-    padding-top: 12rem;
-    padding-left: 22rem;
+    height: 100dvh;
+    align-items: center;
+    justify-content: center;
+    /* padding-top: 12rem; */
+    /* padding-left: 22rem; */
     /* width: auto; */
 }
 
@@ -103,9 +114,22 @@ canvas{display: block}
     overflow: hidden;
 }
 
+.projectImg{
+    width: 14vw;
+    height: 14vh;
+    object-fit: cover;
+}
+
 .social-links a {
     color: white;
     text-decoration: none;
+}
+
+.project_grid{
+    display: grid;
+    padding: 4rem 2rem;
+    grid-template-columns: repeat(6, 1fr);
+    grid-gap: 1rem
 }
 
 .single__top-inner{
@@ -212,6 +236,14 @@ figure img{
     flex-direction: column;
 }
 
+.gridWork {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); 
+    grid-gap: 20px; 
+    justify-items: center;
+    align-items: start;
+    padding: 20px; 
+}
 .projecttop {
     display: flex;
     justify-content: space-between;
@@ -230,11 +262,12 @@ figure img{
 }
 
 .title{
-    font-size: 8rem;
+    font-size: 8vw;
     max-width: 2ch;
     line-height: 0.9;
     font-weight: 500;
     overflow: hidden;
+    font-family: 'MonoramaVariable';
 }
 
 .SynoWrapper{
@@ -263,6 +296,17 @@ figure img{
     margin-bottom: 2rem; 
 }
 
+.workTittle{
+    padding-top: 12rem;
+    padding-left: 2rem;
+    padding-bottom: 4rem;
+}
+.workh1{
+font-size: 7vw;
+line-height: 0.8;
+font-weight: 500;
+}
+
 .summaryText{
     max-width: 62ch;
 }
@@ -288,9 +332,17 @@ figure img{
 }
 
 
+.projecth1{
+    font-size: 8vw !important;
+    font-family: 'MonoramaVariable';
+    font-weight: 400;
+}
+
+
+
 .projecth2{
-    font-size: 1rem;
-    font-weight: 300;
+    font-size: 1vw;
+    font-weight: 500;
     line-height: 1.1;
     overflow: hidden;
 }
@@ -362,6 +414,8 @@ html.lenis {
     padding-top: 6rem;
     padding-bottom: 6rem;
   }
+
+
 
 .grid-container .grid-item:nth-child(2) {
     grid-column: span 2; 

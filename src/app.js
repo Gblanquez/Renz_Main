@@ -228,6 +228,17 @@ export default class Sketch{
 
     }
 
+
+   
+    setPosition() {
+        if (this.imageStore) {
+            this.imageStore.forEach(o => {
+                o.mesh.position.x = - this.asscroll.currentPos + o.left - this.width / 2 + o.width / 2;
+                o.mesh.position.y = -o.top + this.height / 2 - o.height / 2;
+            });
+        }
+    }
+
     
 
 
@@ -302,6 +313,23 @@ export default class Sketch{
                      
                             initializeInsideAnimations(); // Initialize animations specific to the 'inside' page
                         }
+
+                        if(data.next.namespace === 'work'){
+
+                            // cleeaning old arrays
+                       that.imageStore.forEach(m=>{
+                           that.scene.remove(m.mesh)
+                       })
+                       that.imageStore = []
+                       that.materials = []
+                       that.addObjects();
+                       that.resize();
+                       that.addClickEvents()
+                       that.container.style.visibility = "visible";
+                       
+        
+        
+                       }
 
 
 
@@ -447,6 +475,69 @@ export default class Sketch{
 
                 
             }
+          },{
+            name: 'from-work-page-transition',
+            from: {
+                namespace: ["work"]
+            },
+            sync:true,
+            leave(data) {
+                that.asscroll.disable();
+                return gsap.timeline()
+                    .to(data.current.container,{
+                        opacity: 0.
+                    })
+                    
+                   
+            },
+            enter(data) {
+                sync:true,
+                that.asscroll = new ASScroll({
+                    disableRaf: true,
+                    containerElement: data.next.container.querySelector("[asscroll-container]")
+                })
+                that.asscroll.enable({
+                    horizontalScroll: true,
+                    newScrollElements: data.next.container.querySelector('.scroll-wrap')
+                })
+
+
+                if(data.next.namespace === 'home'){
+
+                    // cleeaning old arrays
+               that.imageStore.forEach(m=>{
+                   that.scene.remove(m.mesh)
+               })
+               that.imageStore = []
+               that.materials = []
+               that.addObjects();
+               that.resize();
+               that.addClickEvents()
+               that.container.style.visibility = "visible";
+               
+
+               return gsap.timeline()
+               .from(data.next.container,{
+                   opacity: 0.
+               })
+               .fromTo('.social-link', {
+                   y: '110%',
+                   opacity: 0,
+               }, {
+                   y: '0%',
+                   opacity: 1,
+                   ease: 'expo.out',
+                   duration: 1.8,
+                   stagger: {
+                       each: 0.1
+                   }
+               });
+
+
+               }
+                
+                
+            }
           },
 
           
@@ -529,7 +620,7 @@ export default class Sketch{
         // this.scene.add( this.mesh );
 
 
-        this.images = [...document.querySelectorAll('.js-image')];
+        this.images = [...document.querySelectorAll('img')];
 
         Promise.all(this.images.map(img => {
             return new Promise((resolve, reject) => {
