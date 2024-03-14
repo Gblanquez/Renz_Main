@@ -1,0 +1,10 @@
+{
+  "src/main.js": {
+    "file": "main.js",
+    "src": "src/main.js",
+    "isEntry": true,
+    "assets": [
+      "assets/Monorama-Variable.e998b90b.ttf"
+    ]
+  }
+}

@@ -229,19 +229,6 @@ export default class Sketch{
     }
 
 
-   
-    setPosition() {
-        if (this.imageStore) {
-            this.imageStore.forEach(o => {
-                o.mesh.position.x = - this.asscroll.currentPos + o.left - this.width / 2 + o.width / 2;
-                o.mesh.position.y = -o.top + this.height / 2 - o.height / 2;
-            });
-        }
-    }
-
-    
-
-
     barba(){
 
         this.animationRunning = false;
@@ -258,6 +245,9 @@ export default class Sketch{
                 that.animationRunning = true;
                 that.asscroll.disable();
 
+                // that.imageStore.forEach(m=>{
+                //     that.scene.remove(m.mesh)
+                // })
 
                 const footerLinks = document.querySelectorAll('.social-link')
 
@@ -323,6 +313,7 @@ export default class Sketch{
                        that.imageStore = []
                        that.materials = []
                        that.addObjects();
+                       that.setPosition();
                        that.resize();
                        that.addClickEvents()
                        that.container.style.visibility = "visible";
@@ -788,11 +779,30 @@ export default class Sketch{
 
 
     }
+
+    // setPosition() {
+    //     if (this.imageStore) {
+    //         this.imageStore.forEach(o => {
+    //             o.mesh.position.x = - this.asscroll.currentPos + o.left - this.width / 2 + o.width / 2;
+    //             o.mesh.position.y = -o.top + this.height / 2 - o.height / 2;
+    //         });
+    //     }
+    // }
+
+       
     setPosition() {
         if (this.imageStore) {
+
+            const isVerticalScroll = document.body.classList.contains('b-inside');
+    
             this.imageStore.forEach(o => {
-                o.mesh.position.x = - this.asscroll.currentPos + o.left - this.width / 2 + o.width / 2;
-                o.mesh.position.y = -o.top + this.height / 2 - o.height / 2;
+                if (isVerticalScroll) {
+                    o.mesh.position.x = o.left - this.width / 2 + o.width / 2; 
+                    o.mesh.position.y =  this.asscroll.currentPos - o.top + this.height / 2 - o.height / 2; 
+                } else {
+                    o.mesh.position.x = - this.asscroll.currentPos + o.left - this.width / 2 + o.width / 2; 
+                    o.mesh.position.y = -o.top + this.height / 2 - o.height / 2; 
+                }
             });
         }
     }

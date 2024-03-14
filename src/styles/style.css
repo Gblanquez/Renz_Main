@@ -118,6 +118,7 @@ canvas{display: block}
     width: 14vw;
     height: 14vh;
     object-fit: cover;
+    opacity: 0;
 }
 
 .social-links a {
