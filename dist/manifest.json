@@ -1,7 +1,7 @@
 {
-  "src/main.js": {
+  "index.html": {
     "file": "main.js",
-    "src": "src/main.js",
+    "src": "index.html",
     "isEntry": true,
     "assets": [
       "assets/Monorama-Variable.e998b90b.ttf"
