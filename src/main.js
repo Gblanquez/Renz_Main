@@ -9,7 +9,6 @@ import myHome from './transitions/Home';
 import workRender from './renders/WorkRender';
 import homeRender from './renders/HomeRender';
 import aboutRender from './renders/AboutRender';
-import { SplitText } from "gsap/SplitText";
 import { Flip } from 'gsap/Flip';
 import Lenis from '@studio-freight/lenis';
 import { each } from 'jquery';
