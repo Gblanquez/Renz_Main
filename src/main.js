@@ -1,15 +1,7 @@
 import './styles/style.css'
 import Sketch from './app';
-import { Core } from '@unseenco/taxi'
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import AboutPage from './transitions/About';
-import workPage from './transitions/WorkPage';
-import myHome from './transitions/Home';
-import workRender from './renders/WorkRender';
-import homeRender from './renders/HomeRender';
-import aboutRender from './renders/AboutRender';
-import { Flip } from 'gsap/Flip';
 import Lenis from '@studio-freight/lenis';
 import { each } from 'jquery';
 import lottie from 'lottie-web';
