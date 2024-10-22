@@ -21,7 +21,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { each } from 'jquery';
 
-gsap.registerPlugin(SplitText, ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger);
 
 const socialLinks = document.querySelectorAll('.social-link');
 const navbarLinks = document.querySelectorAll('.navbarsLink');
