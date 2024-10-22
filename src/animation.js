@@ -6,7 +6,6 @@ gsap.registerPlugin(SplitText);
 export function initializeAnimations() {
     gsap.registerPlugin(SplitText);
 
-// Animate paragraphs with class '.ab-t'
 document.querySelectorAll('.ab-t').forEach(paragraph => {
     let mySplitText = new SplitText(paragraph, {type: "words, lines", linesClass: "split-line"});
     let words = mySplitText.words;
