@@ -9,7 +9,6 @@ import myHome from './transitions/Home';
 import workRender from './renders/WorkRender';
 import homeRender from './renders/HomeRender';
 import aboutRender from './renders/AboutRender';
-import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import { SplitText } from "gsap/SplitText";
 import { Flip } from 'gsap/Flip';
 import Lenis from '@studio-freight/lenis';
@@ -44,42 +43,42 @@ setInterval(function () {
   updateTime();
 }, 1000);
 
-function addScrambleAnimations() {
-  // Target the links within .connect-item, .social-links, .social-links-bottom-left, and .navbar-links
-  const selector = '.connect-item a, .social-links a, .social-links-bottom-left a, .navbar-links a';
-  const connectLinks = document.querySelectorAll(selector);
+// function addScrambleAnimations() {
+//   // Target the links within .connect-item, .social-links, .social-links-bottom-left, and .navbar-links
+//   const selector = '.connect-item a, .social-links a, .social-links-bottom-left a, .navbar-links a';
+//   const connectLinks = document.querySelectorAll(selector);
 
-  connectLinks.forEach(link => {
-    let originalText = link.textContent; // Store the original text of each link
+//   connectLinks.forEach(link => {
+//     let originalText = link.textContent; // Store the original text of each link
 
-    link.addEventListener('mouseover', () => {
-      // Start the scramble animation on hover
-      gsap.to(link, {
-        duration: 0.5,
-        scrambleText: {
-          text: originalText,
-          chars: '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde',
-          speed: 1.2
-        }
-      });
-    });
+//     link.addEventListener('mouseover', () => {
+//       // Start the scramble animation on hover
+//       gsap.to(link, {
+//         duration: 0.5,
+//         scrambleText: {
+//           text: originalText,
+//           chars: '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde',
+//           speed: 1.2
+//         }
+//       });
+//     });
 
-    link.addEventListener('mouseout', () => {
-      // Return to the original text on mouse out
-      gsap.to(link, {
-        duration: 0.5,
-        scrambleText: {
-          text: originalText,
-          chars: originalText,
-          speed: 1.2
-        }
-      });
-    });
-  });
-}
+//     link.addEventListener('mouseout', () => {
+//       // Return to the original text on mouse out
+//       gsap.to(link, {
+//         duration: 0.5,
+//         scrambleText: {
+//           text: originalText,
+//           chars: originalText,
+//           speed: 1.2
+//         }
+//       });
+//     });
+//   });
+// }
 
-// Call the function to apply the animations
-addScrambleAnimations();
+// // Call the function to apply the animations
+// addScrambleAnimations();
 
 
 
