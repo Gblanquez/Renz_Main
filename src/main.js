@@ -85,15 +85,15 @@ addScrambleAnimations();
 
 
 
-document.addEventListener('DOMContentLoaded', function() {
-  const animation = lottie.loadAnimation({
-      container: document.getElementById('lottie-logo'), // the DOM element that will contain the animation
-      renderer: 'svg',
-      loop: false,
-      autoplay: true,
-      path: 'https://uploads-ssl.webflow.com/64f92766515fe8ac324ab919/65186a24e392f9569a5bee3f_logo1.json' // the path to the animation JSON
-  });
-});
+// document.addEventListener('DOMContentLoaded', function() {
+//   const animation = lottie.loadAnimation({
+//       container: document.getElementById('lottie-logo'), // the DOM element that will contain the animation
+//       renderer: 'svg',
+//       loop: false,
+//       autoplay: true,
+//       path: 'https://uploads-ssl.webflow.com/64f92766515fe8ac324ab919/65186a24e392f9569a5bee3f_logo1.json' // the path to the animation JSON
+//   });
+// });
 
 document.addEventListener('DOMContentLoaded', function() {
   const DateTime = luxon.DateTime;

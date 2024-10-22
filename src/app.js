@@ -1,15 +1,18 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
+import { SplitText } from "gsap/SplitText";
+import ScrollTrigger from "gsap/ScrollTrigger";
 import ASScroll from '@ashthornton/asscroll'
 import barba from '@barba/core';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import fragment from './shaders/fragment.glsl'
 import vertex from './shaders/vertex.glsl'
+import bgfragment from './shaders/bgFragment.glsl'
+import bgvertex from './shaders/bgVertex.glsl'
 import * as dat from 'dat.gui'
 import testTexture from '../img/texture.jpg'
 import imagesLoaded from 'imagesloaded';
-import { event } from 'jquery';
-import noise from './shaders/noise.glsl'
+
 import { initializeAnimations, OutAnimation, initializeInsideAnimations} from './animation';
 
 
@@ -17,8 +20,125 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { each } from 'jquery';
+
+gsap.registerPlugin(SplitText, ScrollTrigger);
+
+const socialLinks = document.querySelectorAll('.social-link');
+const navbarLinks = document.querySelectorAll('.navbarsLink');
+const loadWrapper = document.querySelector('.loadWrapper'); 
 
 
+function loadAnimation() {
+    return new Promise((resolve, reject) => {
+        let loadValue = 0;
+        const loadLine = document.querySelector('.loadLine');
+        const numberLoad = document.querySelector('.numberLoad');
+        const percentSymbol = document.querySelector('.percentSymbol');
+
+
+        // Set the initial state for links (hidden and y offset)
+        gsap.set([...socialLinks, ...navbarLinks], {
+            opacity: 0,
+            y: '20%'
+        });
+
+        const interval = setInterval(() => {
+            loadValue++;
+            numberLoad.textContent = loadValue;  
+
+            gsap.to(loadLine, {
+                width: `${loadValue}%`,
+                duration: 0.1,
+                ease: "power2.out"
+            });
+
+            if (loadValue >= 100) {
+                clearInterval(interval);
+
+                const tl = gsap.timeline({
+                    onComplete: resolve  
+                });
+
+                // Hide the loading number and symbol
+                tl.to(numberLoad, {
+                    x: "-30%",
+                    opacity: 0,
+                    duration: 1.2,
+                    ease: "power2.inOut"
+                }, 0);
+
+                tl.to(percentSymbol, {
+                    x: "-30%",
+                    opacity: 0,
+                    duration: 1.0,
+                    ease: "power2.inOut"
+                }, 0);  
+
+                // Scale down the load line
+                tl.to(loadLine, {
+                    scaleX: 0,
+                    transformOrigin: "left",
+                    duration: 1.2,
+                    ease: "power2.inOut"
+                }, 0);
+            }
+        }, 50);
+
+    }).then(() => {
+        
+        // Initialize Sketch
+        new Sketch({
+            domElement: document.getElementById('container')
+        });
+
+        const tl = gsap.timeline({
+            onComplete: () => {
+                // Hide the loadWrapper once all animations are complete
+                loadWrapper.style.display = 'none';
+            }
+        });
+
+        // Play Lottie animation
+        tl.add(() => {
+            const animation = lottie.loadAnimation({
+                container: document.getElementById('lottie-logo'),
+                renderer: 'svg',
+                loop: false,
+                autoplay: true,
+                path: 'https://uploads-ssl.webflow.com/64f92766515fe8ac324ab919/65186a24e392f9569a5bee3f_logo1.json'
+            });
+        }), 0;
+
+        // Animate social links with stagger effect
+        tl.fromTo(socialLinks, 
+            { opacity: 0,
+                y: '120%' },  // Start hidden and offset
+            { opacity: 1,
+                y: '0%',
+                duration: 1.4,
+                ease: "expo.out",
+                stagger: {
+                    each: 0.05
+                } }
+        ),0.1;
+
+        // Animate navbar links with stagger effect
+        tl.fromTo(navbarLinks, 
+            { opacity: 0,
+                y: '120%' },  // Start hidden and offset
+            { opacity: 1,
+                y: '0%',
+                duration: 1.4,
+                ease: "expo.out",
+                stagger: {
+                    each: 0.05
+                } }
+        ), 0.1;
+    });
+}
+
+loadAnimation();
 
 export default class Sketch{
     constructor(options){
@@ -36,7 +156,8 @@ export default class Sketch{
         this.renderer = new THREE.WebGLRenderer( { 
             antialias: true,
             alpha: true
-         } );
+         });
+        //  this.renderer.setClearColor(0xffffff, 1);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         // this.renderer.setPixelRatio(2);
         this.container.appendChild(this.renderer.domElement);
@@ -69,6 +190,8 @@ export default class Sketch{
         
         this.time = 0;
         // this.setupSettings()
+
+
         this.addObjects()
         this.setPosition()
 
@@ -78,7 +201,7 @@ export default class Sketch{
 
         this.barba()
         
-        this.setupResize()
+        // this.setupResize()
         // In your class or setup function
         this.clock = new THREE.Clock();
 
@@ -103,7 +226,7 @@ export default class Sketch{
         bloomRadius: 0.001
     };
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(this.width, this.height), bloomParams.bloomStrength, bloomParams.bloomRadius, bloomParams.bloomThreshold);
-    this.composer.addPass(bloomPass);
+    // this.composer.addPass(bloomPass);
     
         //custom shader pass
         var counter = 0.0;
@@ -141,22 +264,20 @@ export default class Sketch{
             vec2 newUV = vUv;
             float start = 0.2; // Start of the effect area
             float end = 0.6; // End of the effect area
-        
+          
             float area = smoothstep(start, start + 0.1, vUv.x) * (1.0 - smoothstep(end - 0.1, end, vUv.x));
-
-            float sinEffect = sin(time * 0.5 + vUv.x * 3.14) * 0.5 + 0.5; // 
-            float cosEffect = cos(time * 0.5 + vUv.y * 3.14) * 0.5 + 0.5; // 
-        
-            // Combine sin and cos effects for a more complex animation
-            float combinedEffect = sinEffect * cosEffect;
-        
-            // Apply the combined effect to scale the UVs, modulated by scrollSpeed and the area
-            float scaleEffect = 1.0 + scrollSpeed * 0.01 * combinedEffect * area;
-        
+          
+            // Use only the sine function for the effect
+            float sinEffect = sin(time * 0.5 + vUv.x * 3.14) * 0.5 + 0.5;
+          
+            // Apply the sin effect to scale the UVs, modulated by scrollSpeed and the area
+            float scaleEffect = 1.0 - scrollSpeed * 0.008 * sinEffect * area;
+          
             // Apply the scale effect, now modulated by the area to ensure it only affects a part of the viewport
             newUV = (newUV - vec2(0.5, 0.5)) * scaleEffect + vec2(0.5, 0.5);
-        
+          
             gl_FragColor = texture2D(tDiffuse, newUV);
+          
           }
           `
         }
@@ -220,13 +341,16 @@ export default class Sketch{
           this.mousePass = new ShaderPass(this.mouseTrailShader);
           this.mousePass.renderToScreen = false;
       
-          this.composer.addPass(this.mousePass);
+        //   this.composer.addPass(this.mousePass);
   
 
 
 
 
     }
+
+
+
 
 
     barba(){
@@ -245,25 +369,12 @@ export default class Sketch{
                 that.animationRunning = true;
                 that.asscroll.disable();
 
-                // that.imageStore.forEach(m=>{
-                //     that.scene.remove(m.mesh)
-                // })
-
-                const footerLinks = document.querySelectorAll('.social-link')
-
                 return gsap.timeline()
+
                     .to(data.current.container,{
                         opacity: 0,
                     })
-                    .to(footerLinks, {
-                        y: '110%',
-                        opacity: 0,
-                        stagger: {
-                            each: 0.1
-                        }, 
-                        duration: 1.1,
-                        ease: 'expo.out'
-                    }, '0')
+
                     
             },
             enter(data) {
@@ -282,13 +393,14 @@ export default class Sketch{
                     onComplete: ()=>{
                         that.container.style.visibility = "hidden";
                         that.animationRunning = false;
-
                         if(data.next.namespace === 'about'){
-                            gsap.to('.aboutWrapper',{
+
+                            gsap.to('.aboutWrapper', {
                                 opacity: 1,
                                 duration: 0.3
-                            })
-                            initializeAnimations()
+                            });
+                            initializeAnimations();
+                           
                         }
 
                         if (data.next.namespace === 'inside') {
@@ -301,7 +413,7 @@ export default class Sketch{
                                 duration: 0.3
                             })
                      
-                            initializeInsideAnimations(); // Initialize animations specific to the 'inside' page
+                            initializeInsideAnimations(); 
                         }
 
                         if(data.next.namespace === 'work'){
@@ -309,7 +421,7 @@ export default class Sketch{
                             // cleeaning old arrays
                        that.imageStore.forEach(m=>{
                            that.scene.remove(m.mesh)
-                       })
+                       })                       
                        that.imageStore = []
                        that.materials = []
                        that.addObjects();
@@ -317,8 +429,6 @@ export default class Sketch{
                        that.resize();
                        that.addClickEvents()
                        that.container.style.visibility = "visible";
-                       
-        
         
                        }
 
@@ -381,19 +491,6 @@ export default class Sketch{
                .from(data.next.container,{
                    opacity: 0.
                })
-               .fromTo('.social-link', {
-                   y: '110%',
-                   opacity: 0,
-               }, {
-                   y: '0%',
-                   opacity: 1,
-                   ease: 'expo.out',
-                   duration: 1.8,
-                   stagger: {
-                       each: 0.1
-                   }
-               });
-
 
                }
                 
@@ -446,18 +543,7 @@ export default class Sketch{
                 .from(data.next.container,{
                     opacity: 0.
                 })
-                .fromTo('.social-link', {
-                    y: '110%',
-                    opacity: 0,
-                }, {
-                    y: '0%',
-                    opacity: 1,
-                    ease: 'expo.out',
-                    duration: 1.8,
-                    stagger: {
-                        each: 0.1
-                    }
-                });
+
 
 
                 }
@@ -511,18 +597,6 @@ export default class Sketch{
                .from(data.next.container,{
                    opacity: 0.
                })
-               .fromTo('.social-link', {
-                   y: '110%',
-                   opacity: 0,
-               }, {
-                   y: '0%',
-                   opacity: 1,
-                   ease: 'expo.out',
-                   duration: 1.8,
-                   stagger: {
-                       each: 0.1
-                   }
-               });
 
 
                }
@@ -596,7 +670,9 @@ export default class Sketch{
                 uResolution: { value: new THREE.Vector2(this.width, this.height) },
                 uCorners: {value: new THREE.Vector4(0, 0, 0, 0)},
                 uQuadSize: {value: new THREE.Vector2(300, 300)},
-                uTextureSize: {value: new THREE.Vector2(100, 100)}
+                uTextureSize: {value: new THREE.Vector2(100, 100)},
+                uPositionOffset: {value: new THREE.Vector3(0, 0, 0)}
+
             },
 
             vertexShader: vertex,
@@ -611,7 +687,34 @@ export default class Sketch{
         // this.scene.add( this.mesh );
 
 
-        this.images = [...document.querySelectorAll('img')];
+
+        //Background Mesh
+
+        this.backgroundGeometry = new THREE.PlaneGeometry(2, 2, 100, 100)
+        this.backgroundMaterial = new THREE.ShaderMaterial({
+            uniforms:{
+                time: { value: 1.0 },
+                hover: {value: new THREE.Vector2( 0.5, 0.5)},
+                hoverState: {value: 0},
+                u_resolution: {value: new THREE.Vector2(this.width, this.height)},
+                smoothSpped: {value: 1.0}
+            },
+            // wireframe: true,
+            vertexShader: bgvertex,
+            fragmentShader: bgfragment
+        })
+
+        this.bgMesh = new THREE.Mesh(this.backgroundGeometry, this.backgroundMaterial);
+        this.bgMesh.scale.set(300, 300, 1);
+        this.bgMesh.position.set(1, 1, -30)
+        // this.scene.add(this.bgMesh);
+
+
+
+        //Images Texture Meshes
+
+
+        this.images = [...document.querySelectorAll('.js-image')];
 
         Promise.all(this.images.map(img => {
             return new Promise((resolve, reject) => {
@@ -670,7 +773,6 @@ export default class Sketch{
                             ease: 'expo.out'
                         }, 0.4);
                     });
-
                     
 
                     // img.addEventListener('mouseover', () =>{
@@ -742,7 +844,41 @@ export default class Sketch{
                 imageObj.onerror = reject;
             });
         })).then(imageStore => {
-            this.imageStore = imageStore;
+            this.imageStore = imageStore; 
+
+
+// Define a base delay and a stagger amount2
+const baseDelay = 0.02; // Delay before the first animation starts
+const staggerAmount = 0.16; // Additional delay for each subsequent mesh
+
+// Check if the body has the class 'b-inside'
+const isVerticalScroll = document.body.classList.contains('b-inside');
+
+imageStore.forEach(({material}, index) => {
+    const delay = baseDelay + index * staggerAmount;
+
+    // Determine the starting position based on 'b-inside' class
+    const startPosition = isVerticalScroll ? { x: 0, y: -5, z: 0 } : { x: 5, y: 0, z: 0 };
+
+    // Animate uPositionOffset with the calculated delay
+    gsap.fromTo(material.uniforms.uPositionOffset.value, 
+        startPosition, 
+        {
+            x: 0,
+            y: 0,
+            z: 0, 
+            duration: 1.8, 
+            delay: delay,
+            ease: "expo.out", 
+            onUpdate: () => {
+                material.uniforms.uPositionOffset.needsUpdate = true;
+            }
+        }
+    );
+});
+        
+
+
 
         }).catch(error => {
             console.error('Error loading images:', error);
@@ -750,44 +886,12 @@ export default class Sketch{
 
 
 
-        // this.imageStore = this.images.map(img => {
-        //     let bounds = img.getBoundingClientRect();
-        //     let m = this.material.clone()
-        //     this.materials.push(m)
-
-        //     let texture = new THREE.Texture(img);
-        //     texture.needsUpdate = true;
-
-
-        //     m.uniforms.uTexture.value = texture;
-
-
-        //     let mesh = new THREE.Mesh(this.geometry, m);
-        //     this.scene.add(mesh);
-        //     mesh.scale.set(bounds.width, bounds.height, 1);
-        //     return {
-        //         img: img,
-        //         mesh: mesh,
-        //         width: bounds.width,
-        //         height: bounds.height,
-        //         top: bounds.top,
-        //         left: bounds.left, 
-        //     }
-        // })
 
 
 
 
     }
 
-    // setPosition() {
-    //     if (this.imageStore) {
-    //         this.imageStore.forEach(o => {
-    //             o.mesh.position.x = - this.asscroll.currentPos + o.left - this.width / 2 + o.width / 2;
-    //             o.mesh.position.y = -o.top + this.height / 2 - o.height / 2;
-    //         });
-    //     }
-    // }
 
        
     setPosition() {
@@ -823,7 +927,7 @@ export default class Sketch{
             this.raycaster.setFromCamera(this.mouse, this.camera);
     
             // Perform the raycasting
-            const intersects = this.raycaster.intersectObjects(this.scene.children, true); // 'true' to check descendants
+            const intersects = this.raycaster.intersectObjects(this.scene.children, true); 
             if (intersects.length > 0) {
                     let obj = intersects[0].object;
                     obj.material.uniforms.hover.value = intersects[0].uv;
@@ -834,6 +938,7 @@ export default class Sketch{
     render(){
         this.time += 0.05;
         this.material.uniforms.time.value = this.time;
+        this.backgroundMaterial.uniforms.time.value = this.time;
         // this.material.uniforms.uProgress.value = this.setting.progress;
 
         this.materials.forEach(m=>{
@@ -865,7 +970,8 @@ export default class Sketch{
 
 }
 
-new Sketch({
-    domElement: document.getElementById('container')
-});
+// new Sketch({
+//     domElement: document.getElementById('container')
+// });
+
 

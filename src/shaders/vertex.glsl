@@ -1,10 +1,17 @@
 uniform float time;
 uniform float uProgress;
+uniform float hoverState;
+
 uniform vec2 uResolution;
 uniform vec2 uQuadSize;
 uniform vec4 uCorners;
 uniform vec2 hover;
-uniform float hoverState;
+
+uniform vec3 uPositionOffset;
+
+
+
+
 
 varying vec2 vUv;
 varying vec2 vSize;
@@ -12,12 +19,12 @@ varying vec2 vSize;
 
 
 void main(){
-    float PI = 3.1415926;
+  float PI = 3.1415926;
     vec3 newposition = position;
 
     vUv = uv;
 
-// Hover animation
+    // Hover animation
     float dist = distance(uv, hover);
     float hoverEffect = hoverState * 10.0 * sin(dist * 10.0 + time) * 0.2;
 
@@ -32,6 +39,9 @@ void main(){
 
     // Combine hover and click effects
     newposition.z += hoverEffect + waves;
+
+    // Apply the position offset here, after all other position adjustments
+    newposition += uPositionOffset;
 
     // Calculate the default state
     vec4 defaultState = modelMatrix * vec4(newposition, 1.0);
