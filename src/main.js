@@ -15,6 +15,7 @@ import { Flip } from 'gsap/Flip';
 import Lenis from '@studio-freight/lenis';
 import { each } from 'jquery';
 import lottie from 'lottie-web';
+import app from './app';
 
 // import customRender from './renders/Load';
 gsap.registerPlugin(ScrollTrigger, SplitText, Flip);
