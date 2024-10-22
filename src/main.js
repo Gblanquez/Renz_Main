@@ -8,7 +8,7 @@ import lottie from 'lottie-web';
 import app from './app';
 
 // import customRender from './renders/Load';
-gsap.registerPlugin(ScrollTrigger, SplitText, Flip);
+gsap.registerPlugin(ScrollTrigger, Flip);
 
 //Velocity Animation
 
