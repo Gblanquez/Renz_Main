@@ -6,6 +6,7 @@ import Lenis from '@studio-freight/lenis';
 import { each } from 'jquery';
 import lottie from 'lottie-web';
 import app from './app';
+import $ from 'jquery';
 
 // import customRender from './renders/Load';
 gsap.registerPlugin(ScrollTrigger, Flip);
