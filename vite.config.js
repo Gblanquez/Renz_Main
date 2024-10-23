@@ -23,7 +23,7 @@ export default defineConfig({
         inside: './inside.html', 
       },
       output: {
-        format: 'umd',
+        format: 'es',
         entryFileNames: 'main.js',
         esModule: false,
         compact: true,
