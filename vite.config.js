@@ -16,7 +16,12 @@ export default defineConfig({
     minify: true,
     manifest: true,
     rollupOptions: {
-      input: './index.html',
+      input: {
+        main: './index.html',
+        about: './about.html',
+        contact: './work.html',
+        inside: './inside.html', 
+      },
       output: {
         format: 'umd',
         entryFileNames: 'main.js',
