@@ -24,7 +24,7 @@
     "imagesloaded": "^5.0.0",
     "lottie-web": "^5.12.2",
     "luxon": "^3.4.4",
-    "split-type": "^0.3.4",
+    "split-type": "^0.2.1",
     "three": "^0.160.1"
   }
 }

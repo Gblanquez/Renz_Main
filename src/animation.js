@@ -1,235 +1,143 @@
-// import { gsap } from "gsap";
+import SplitType from 'split-type'
+import { gsap } from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
 
 
+function scrambleText(element, finalText, duration = 1.6, speed = 0.03, delay = 0) {
+    const chars = '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde'
+    let frame = 0
+    const totalFrames = duration * 1000 / (speed * 1000)
+    let isAnimating = true
 
-// export function initializeAnimations() {
-//     gsap.registerPlugin(SplitText);
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const update = () => {
+                if (!isAnimating) return
 
-// document.querySelectorAll('.ab-t').forEach(paragraph => {
-//     let mySplitText = new SplitText(paragraph, {type: "words, lines", linesClass: "split-line"});
-//     let words = mySplitText.words;
-//     words.forEach(word => {
-//         gsap.fromTo(word, {
-//             x: '200%',
-//             opacity: 0,
-//         }, {
-//             x: '0%',
-//             opacity: 1,
-//             duration: 1.6,
-//             ease: "expo.out",
-//             onStart: function() {
-//                 gsap.to(word, {
-//                     duration: 1.8,
-//                     scrambleText: {
-//                         text: word.textContent,
-//                         chars: '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde',
-//                         speed: 1,
-//                         revealDelay: 0.8,
-//                     },
-//                     ease: "none",
-//                 });
-//             }
-//         });
-//     });
-// });
+                frame++
+                let progress = frame / totalFrames
+                let newText = ''
+                
+                for (let i = 0; i < finalText.length; i++) {
+                    if (progress >= 1) {
+                        newText += finalText[i]
+                    } else {
+                        newText += chars[Math.floor(Math.random() * chars.length)]
+                    }
+                }
+                
+                element.textContent = newText
 
-// // Animate '.mainText'
-// let mainText = document.querySelector('.mainText');
-// if (mainText) { // Check if '.mainText' exists
-//     let mySplitText = new SplitText(mainText, {type: "words, lines", linesClass: "split-line"});
-//     let words = mySplitText.words;
-//     words.forEach(word => {
-//         gsap.timeline({
-//             scrollTrigger: {
-//                 trigger: word,
-//                 start: "top bottom",
-//             }
-//         })
-//         .fromTo(word, {
-//             x: '200%',
-//             opacity: 0,
-//         }, {
-//             x: '0%',
-//             opacity: 1,
-//             duration: 1.6,
-//             ease: "expo.out",
-//         })
-//         .to(word, {
-//             duration: 1.8,
-//             scrambleText: {
-//                 text: word.textContent,
-//                 chars: '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde',
-//                 speed: 1,
-//                 revealDelay: 0.8,
-//             },
-//             ease: "none",
-//         }, 0);
-//     });
-// }
+                if (progress < 1) {
+                    requestAnimationFrame(update)
+                } else {
+                    resolve()
+                }
+            }
+            requestAnimationFrame(update)
+        }, delay * 1000)
+    })
+}
 
-// // Animate elements with class 'scramble-text'
-// animateScrambleText('.info2');
-// animateScrambleText('.service-item .scramble-text');
-// animateScrambleText('.connect-item .scramble-text');
-// animateScrambleText('.request-item .scramble-text');
-
+// Main animation function
+function animateText(selector, options = {}) {
+    const elements = document.querySelectorAll(selector)
     
-//     // Function to animate elements with the class 'scramble-text'
-//     function animateScrambleText(selector) {
-//         document.querySelectorAll(selector).forEach(item => {
-//             let mySplitText = new SplitText(item, {type: "words, lines", linesClass: "split-line"});
-//             let words = mySplitText.words;
-//             words.forEach(word => {
-//                 gsap.timeline({
-//                     scrollTrigger: {
-//                         trigger: word,
-//                         start: "top bottom",
-//                     }
-//                 })
-//                 .fromTo(word, {
-//                     x: '200%',
-//                     opacity: 0,
-//                 }, {
-//                     x: '0%',
-//                     opacity: 1,
-//                     duration: 1.6,
-//                     ease: "expo.out",
-//                 })
-//                 .to(word, {
-//                     duration: 1.8,
-//                     scrambleText: {
-//                         text: word.textContent,
-//                         chars: '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde',
-//                         speed: 1,
-//                         revealDelay: 0.8,
-//                     },
-//                     ease: "none",
-//                 }, 0);
-//             });
-//         });
-//     }
-// }
+    elements.forEach(element => {
+        const split = new SplitType(element, { 
+            types: 'words',
+            tagName: 'span'
+        })
 
-// export function OutAnimation() {
+        split.words.forEach((word) => {
+            const originalText = word.textContent
+            
+            const tl = gsap.timeline({
+                scrollTrigger: {
+                    trigger: word,
+                    start: "top bottom",
+                }
+            })
 
-// // Helper function to reverse animations for a given selector, applying both scramble and movement simultaneously
-// function reverseAnimations(selector, moveX = '-200%') {
-//     document.querySelectorAll(selector).forEach(item => {
-//         let mySplitText = new SplitText(item, {type: "words, lines"});
-//         let words = mySplitText.words;
-//         words.forEach(word => {
-//             // Simultaneously apply scramble and movement animations
-//             gsap.timeline()
-//             .to(word, {
-//                 duration: 1.8,
-//                 scrambleText: {
-//                     text: word.textContent, // Scramble to original text
-//                     chars: '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde',
-//                     speed: 0.7,
-//                     revealDelay: 1,
-//                 },
-//                 x: moveX, 
-//                 opacity: 0, 
-//                 ease: "expo.out",
-//             });
-//         });
-//     });
-// }
+            tl.fromTo(word, 
+                {
+                    x: '200%',
+                    opacity: 0,
+                }, 
+                {
+                    x: '0%',
+                    opacity: 1,
+                    duration: 1.6,
+                    ease: "expo.out",
+                    onStart: () => {
 
-// // Apply reverse animations to all targeted elements
-// reverseAnimations('.ab-t');
-// reverseAnimations('.mainText');
+                        scrambleText(word, originalText, 1.6)
+                    }
+                }
+            )
 
 
-// reverseAnimations('.info2', '0%'); 
-// reverseAnimations('.info2 .scramble-text');
-// reverseAnimations('.service-item .scramble-text');
-// reverseAnimations('.connect-item .scramble-text');
-// reverseAnimations('.request-item .scramble-text');
+            if (options.blink) {
+                tl.to(word, {
+                    opacity: 0,
+                    repeat: 8,
+                    yoyo: true,
+                    duration: 0.05,
+                    ease: "expo.out",
+                }, 0)
+            }
+        })
+    })
+}
 
-        
-// }
 
-// export function initializeInsideAnimations() {
-//     // Animate '.projecth1'
-//     let projectH1 = document.querySelector('.projecth1');
-//     if (projectH1) {
-//         let mySplitTextH1 = new SplitText(projectH1, {type: "words, lines", linesClass: "split-line"});
-//         mySplitTextH1.words.forEach(word => {
-//             const tl = gsap.timeline({
-//                 scrollTrigger: {
-//                     trigger: word,
-//                     start: "top bottom",
-//                 }
-//             });
+export function initializeAnimations() {
+    animateText('.ab-t')
+    animateText('.mainText')
+    animateText('.info2')
+    animateText('.service-item .scramble-text')
+    animateText('.connect-item .scramble-text')
+    animateText('.request-item .scramble-text')
+}
 
-//             tl.fromTo(word, {
-//                 x: '200%',
-//                 opacity: 0,
-//             }, {
-//                 x: '0%',
-//                 opacity: 1,
-//                 duration: 1.2,
-//                 ease: "expo.out",
-//             })
-//             .to(word, {
-//                 duration: 1.2,
-//                 scrambleText: {
-//                     text: word.textContent,
-//                     chars: '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde',
-//                     speed: 1,
-//                     revealDelay: 0.8,
-//                 },
-//                 ease: "none",
-//             }, 0) // Start at the beginning of the timeline
-//             .to(word, {
-//                 opacity: 0,
-//                 repeat: 8,
-//                 yoyo: true,
-//                 duration: 0.05,
-//                 ease: "expo.out",
-//             }, 0); // Add blinking effect
-//         });
-//     }
+export function OutAnimation() {
+    function reverseAnimations(selector, moveX = '-200%') {
+        document.querySelectorAll(selector).forEach(element => {
+            const split = new SplitType(element, { 
+                types: 'words',
+                tagName: 'span'
+            })
 
-//     // Animate '.projecth2'
-//     let projectH2 = document.querySelector('.projecth2');
-//     if (projectH2) {
-//         let mySplitTextH2 = new SplitText(projectH2, {type: "words, lines", linesClass: "split-line"});
-//         mySplitTextH2.words.forEach(word => {
-//             const tl = gsap.timeline({
-//                 scrollTrigger: {
-//                     trigger: word,
-//                     start: "top bottom",
-//                 }
-//             });
+            split.words.forEach(word => {
+                const originalText = word.textContent
+                gsap.timeline()
+                    .to(word, {
+                        duration: 1.8,
+                        x: moveX,
+                        opacity: 0,
+                        ease: "expo.out",
+                        onStart: () => {
+                            scrambleText(word, originalText, 1.8, 0.02)
+                        }
+                    })
+            })
+        })
+    }
 
-//             tl.fromTo(word, {
-//                 x: '200%',
-//                 opacity: 0,
-//             }, {
-//                 x: '0%',
-//                 opacity: 1,
-//                 duration: 1.2,
-//                 ease: "expo.out",
-//             })
-//             .to(word, {
-//                 duration: 1.2,
-//                 scrambleText: {
-//                     text: word.textContent,
-//                     chars: '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde',
-//                     speed: 1,
-//                     revealDelay: 0.8,
-//                 },
-//                 ease: "none",
-//             }, 0) // Start at the beginning of the timeline
-//             .to(word, {
-//                 opacity: 0,
-//                 repeat: 8,
-//                 yoyo: true,
-//                 duration: 0.05,
-//                 ease: "expo.out",
-//             }, 0); // Add blinking effect
-//         });
-//     }
-// }
+
+    reverseAnimations('.ab-t')
+    reverseAnimations('.mainText')
+    reverseAnimations('.info2', '0%')
+    reverseAnimations('.info2 .scramble-text')
+    reverseAnimations('.service-item .scramble-text')
+    reverseAnimations('.connect-item .scramble-text')
+    reverseAnimations('.request-item .scramble-text')
+}
+
+
+export function initializeInsideAnimations() {
+    animateText('.projecth1', { blink: true })
+    animateText('.projecth2', { blink: true })
+}

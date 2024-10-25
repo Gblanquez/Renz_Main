@@ -12,7 +12,7 @@ import * as dat from 'dat.gui'
 import testTexture from '../img/texture.jpg'
 import imagesLoaded from 'imagesloaded';
 
-// import { initializeAnimations, OutAnimation, initializeInsideAnimations} from './animation';
+import { initializeAnimations, OutAnimation, initializeInsideAnimations} from './animation';
 
 
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -27,6 +27,7 @@ const socialLinks = document.querySelectorAll('.social-link');
 const navbarLinks = document.querySelectorAll('.navbarsLink');
 const loadWrapper = document.querySelector('.loadWrapper'); 
 const loadTime = document.querySelector('.time-location');
+
 
 
 function loadAnimation() {
@@ -399,7 +400,7 @@ export default class Sketch{
                                 opacity: 1,
                                 duration: 0.3
                             });
-                            // initializeAnimations();
+                            initializeAnimations();
                            
                         }
 
@@ -413,7 +414,7 @@ export default class Sketch{
                                 duration: 0.3
                             })
                      
-                            // initializeInsideAnimations(); 
+                            initializeInsideAnimations(); 
                         }
 
                         if(data.next.namespace === 'work'){

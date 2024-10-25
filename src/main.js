@@ -7,9 +7,10 @@ import { each } from 'jquery';
 import lottie from 'lottie-web';
 import app from './app';
 import $ from 'jquery';
+import SplitType from 'split-type'
 
 // import customRender from './renders/Load';
-gsap.registerPlugin(ScrollTrigger, Flip);
+gsap.registerPlugin(ScrollTrigger);
 
 //Velocity Animation
 
@@ -35,42 +36,68 @@ setInterval(function () {
   updateTime();
 }, 1000);
 
-// function addScrambleAnimations() {
-//   // Target the links within .connect-item, .social-links, .social-links-bottom-left, and .navbar-links
-//   const selector = '.connect-item a, .social-links a, .social-links-bottom-left a, .navbar-links a';
-//   const connectLinks = document.querySelectorAll(selector);
+// Utility scramble function
+function scrambleText(element, finalText, duration = 0.5, speed = 0.02) {
+    const chars = '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde'
+    let frame = 0
+    const totalFrames = duration * 1000 / (speed * 1000) // Convert to milliseconds
+    let isAnimating = true
 
-//   connectLinks.forEach(link => {
-//     let originalText = link.textContent; // Store the original text of each link
+    const update = () => {
+        if (!isAnimating) return
 
-//     link.addEventListener('mouseover', () => {
-//       // Start the scramble animation on hover
-//       gsap.to(link, {
-//         duration: 0.5,
-//         scrambleText: {
-//           text: originalText,
-//           chars: '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde',
-//           speed: 1.2
-//         }
-//       });
-//     });
+        frame++
+        let progress = frame / totalFrames
+        let newText = ''
+        
+        for (let i = 0; i < finalText.length; i++) {
+            if (progress >= 1) {
+                newText += finalText[i]
+            } else {
+                newText += chars[Math.floor(Math.random() * chars.length)]
+            }
+        }
+        
+        element.textContent = newText
 
-//     link.addEventListener('mouseout', () => {
-//       // Return to the original text on mouse out
-//       gsap.to(link, {
-//         duration: 0.5,
-//         scrambleText: {
-//           text: originalText,
-//           chars: originalText,
-//           speed: 1.2
-//         }
-//       });
-//     });
-//   });
-// }
+        if (progress < 1) {
+            requestAnimationFrame(update)
+        }
+    }
 
-// // Call the function to apply the animations
-// addScrambleAnimations();
+    return {
+        start: () => {
+            isAnimating = true
+            frame = 0
+            requestAnimationFrame(update)
+        },
+        stop: () => {
+            isAnimating = false
+            element.textContent = finalText
+        }
+    }
+}
+
+function addScrambleAnimations() {
+    const selector = '.connect-item a, .social-links a, .social-links-bottom-left a, .navbar-links a'
+    const connectLinks = document.querySelectorAll(selector)
+
+    connectLinks.forEach(link => {
+        const originalText = link.textContent
+        const scrambler = scrambleText(link, originalText)
+
+        link.addEventListener('mouseenter', () => {
+            scrambler.start()
+        })
+
+        link.addEventListener('mouseleave', () => {
+            scrambler.stop()
+        })
+    })
+}
+
+// Call the function to apply the animations
+addScrambleAnimations();
 
 
 
@@ -93,6 +120,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.getElementById('time-location').textContent = `LDN ${londonTime} GMT`;
 });
+
+
 
 
 
