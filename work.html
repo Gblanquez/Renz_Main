@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
-	<title>Document</title>
+	<title>Work</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="/src/styles/style.css">
 </head>
 <body class="b-inside">
-	<div class="navbar">
+    <div class="navbar">
 
         <div class="navbar-header">
-            <a href="index.html" class="logo">
+            <a href="index.html" class="logo-link">
                 <div id="lottie-logo"></div>
             </a>
         </div>
@@ -21,13 +21,23 @@
         <div class="navbar-content">
 
 			<div class="navbar-time">
-                <span id="time-location">Loading time...</span>
+				<div class="navbarsLink">
+					<span id="time-location">Loading time...</span>
+				
+				</div>
+
             </div>
 
             <div class="navbar-links">
-                <a href="#work">Work</a>
-                <a href="#contact">Contact</a>
-                <a href="about.html">Info</a>
+				<div class="navbarsLink">
+					<a href="work.html">Work</a>
+				</div>
+				<div class="navbarsLink">
+					<a href="#contact">Contact</a>
+				</div>
+				<div class="navbarsLink">
+					<a href="about.html">Info</a>
+				</div>
             </div>
 
         </div>
@@ -193,6 +203,14 @@
                         </a>
                     </div>
 
+                    <div class="project_grid_item">
+                        <a href="inside.html" class="projectItem">
+                            <img src="img/3.jpg" class="projectImg" alt="">
+                            <h2 class="indexH2">Some title</h2>
+                            <p class="indexP">And some very interesting description.</p>
+                        </a>
+                    </div>
+
 
 				</div>
 
@@ -218,9 +236,12 @@
 	</div>
 	</div>
 	<!-- end barba -->
-	<div class="curtain"></div>
 	<div id="container"></div>
+
+
 	<script type="module" src="/src/app.js"></script>
+    <!-- <script type="module" src="/src/main.js"></script> -->
+    <!-- <script type="module" src="/src/WorkSketch.js"></script> -->
 
 
 </body>

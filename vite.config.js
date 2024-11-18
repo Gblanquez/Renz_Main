@@ -19,7 +19,7 @@ export default defineConfig({
       input: {
         main: './index.html',
         about: './about.html',
-        contact: './work.html',
+        work: './work.html',
         inside: './inside.html', 
       },
       output: {

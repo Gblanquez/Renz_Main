@@ -138,6 +138,6 @@ export function OutAnimation() {
 
 
 export function initializeInsideAnimations() {
-    animateText('.projecth1', { blink: true })
-    animateText('.projecth2', { blink: true })
+    animateText('.projecth1')
+    animateText('.projecth2')
 }
