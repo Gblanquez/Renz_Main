@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renz Ward - Contact</title>
+    <link rel="stylesheet" href="/src/styles/style.css">
+</head>
+<body class="b-inside">
+    <div class="navbar">
+        <div class="navbar-header">
+            <a href="index.html" class="logo">
+                <div id="lottie-logo"></div>
+            </a>
+            <div class="it">
+                <div class="navbarsLink">
+                    <span id="time-location">DESIGNER / ARTIST<br>based in the united kingdom</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="navbar-content">
+            <div class="navbar-links">
+                <div class="navbarsLink">
+                    <a href="work.html">Work</a>
+                </div>
+                <div class="navbarsLink">
+                    <a href="contact.html">Contact</a>
+                </div>
+                <div class="navbarsLink">
+                    <a href="about.html">Info</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div data-barba="wrapper">
+        <div data-barba="container" data-barba-namespace="contact">
+            <div asscroll-container>
+                <div class="scroll-wrap">
+                    <div class="contact-form-container">
+                        <h1>Contact Me</h1>
+                        <form id="contact-form" action="/submit" method="POST">
+                            <div class="form-group">
+                                <label for="name">Name</label>
+                                <input type="text" id="name" name="name" placeholder="Your First Name" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="last-name">Last Name</label>
+                                <input type="text" id="last-name" name="last-name" placeholder="Your Last Name" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" id="email" name="email" placeholder="Your Email" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="project-idea">Project Idea</label>
+                                <textarea id="project-idea" name="project-idea" placeholder="Tell me about your project..." rows="5" required></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Rate</label>
+                                <div class="radio-group">
+                                    <label>
+                                        <input type="radio" name="rate" value="5k-10k" required> 5k - 10k
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="rate" value="10k-30k"> 10k - 30k
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="rate" value="30k+"> 30k+
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>When do you want this project to start?</label>
+                                <div class="radio-group">
+                                    <label>
+                                        <input type="radio" name="start-time" value="asap" required> ASAP
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="start-time" value="within-2-months"> Within 2 Months
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="start-time" value="4months+"> 4 Months+
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="submit-btn">Submit</button>
+                        </form>
+                    </div>
+                </div> <!-- Close scroll-wrap -->
+            </div> <!-- Close asscroll-container -->
+        </div> <!-- Close data-barba="container" -->
+    </div> <!-- Close data-barba="wrapper" -->
+
+    <div id="container"></div>
+    <script type="module" src="/src/app.js"></script>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
