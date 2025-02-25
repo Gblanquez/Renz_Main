@@ -20,7 +20,8 @@ export default defineConfig({
         main: './index.html',
         about: './about.html',
         work: './work.html',
-        inside: './inside.html', 
+        inside: './inside.html',
+        contact: './contact.html'
       },
       output: {
         format: 'es',
