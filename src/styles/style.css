@@ -464,6 +464,8 @@ figure img{
 }
 
 .submit-btn {
+    font-size: calc(28 / 2300 * 100 * var(--vw));
+    font-weight: 500;
     cursor: pointer;
     text-transform: uppercase;
     padding-top: 1vw;
@@ -483,18 +485,31 @@ figure img{
     opacity: 0 !important; /* Hide placeholder text */
 }
 
-.form-group input[type="radio"]{
+.form-group input[type="radio"] {
+    appearance: none; 
+    -webkit-appearance: none; 
+    -moz-appearance: none;
     width: 1vw;
     height: 1vw;
+    border-radius: 100%;
+    background: gray;
+    opacity: 0.5;
+    border: 0.5vw;
+    border-color: #eee;
 }
 
-.form-group input[type="radio"]:focus{
-    color: red;
+.form-group input[type="radio"]:checked {
+    background: whitesmoke;
+    border-color: whitesmoke;
+    opacity: 1;
 }
+
+
 
 .form-group input[type="text"],
 .form-group input[type="email"],
 .form-group textarea {
+    
     width: 100%;
     font-size: calc(14 / 2300 * 100 * var(--vw));
     text-transform: uppercase;
@@ -513,6 +528,9 @@ figure img{
 }
 
 .form-group textarea {
+    appearance: none; 
+    -webkit-appearance: none; 
+    -moz-appearance: none;
     width: 100%;
     font-size: calc(14 / 2300 * 100 * var(--vw));
     text-transform: uppercase;
@@ -661,6 +679,20 @@ font-weight: 500;
     padding-top: 18vw;
     padding-bottom: 6vw;
   }
+
+
+  @media (max-width: 480px) {
+    .grid-container {
+        display: grid; /* Switch to grid on mobile */
+        grid-template-columns: repeat(2, 1fr); /* 2 columns, equal width */
+        grid-template-rows: repeat(2, auto); /* 2 rows, auto height */
+        gap: 4vw; /* Smaller gap for mobile */
+        padding-top: 10vw; /* Reduced padding for mobile */
+        padding-bottom: 4vw; /* Reduced padding for mobile */
+    }
+}
+
+
 
 
 
