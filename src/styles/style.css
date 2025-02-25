@@ -6,8 +6,13 @@
   }
 
   :root {
-    --vw: 0.01vw; 
+    --vw: 0.01vw;
   }
+
+  
+
+
+
 
 h2,h3,h4,p,span{
     font-size: calc(14 / 2300 * 100 * var(--vw));
@@ -682,15 +687,44 @@ font-weight: 500;
 
 
   @media (max-width: 480px) {
-    .grid-container {
-        display: grid; /* Switch to grid on mobile */
-        grid-template-columns: repeat(2, 1fr); /* 2 columns, equal width */
-        grid-template-rows: repeat(2, auto); /* 2 rows, auto height */
-        gap: 4vw; /* Smaller gap for mobile */
-        padding-top: 10vw; /* Reduced padding for mobile */
-        padding-bottom: 4vw; /* Reduced padding for mobile */
+    :root {
+        --mvw: 0.0209vw; 
     }
-}
+
+    h2,h3,h4,p,span,a,p{
+        font-size: calc(12 / 480 * 100 * var(--mvw)) !important;
+        line-height: calc(14 / 480 * 100 * var(--mvw)) !important;
+    }
+
+    .ab-t{
+        max-width: 80% !important;
+    }
+
+    .mainText{
+        font-size: calc(22 / 480 * 100 * var(--mvw)) !important;
+        line-height: calc(22 / 480 * 100 * var(--mvw)) !important;
+    }
+
+    .grid-container {
+        display: grid; 
+        grid-template-columns: repeat(2, 1fr); 
+        grid-template-rows: repeat(2, auto);
+        gap: 4vw;
+        padding-top: 14vw; 
+        padding-bottom: 4vw;
+    }
+
+    .grid-container :first-child { /* Space before :first-child */
+        grid-column: span 2; /* Span 2 columns */
+    }
+
+    .aboutWrapper{
+        padding-top: 18vw;
+    }
+
+  }
+
+  
 
 
 

@@ -12,6 +12,8 @@ const setVw = () => {
     // Set --vw to 1% of the current viewport width in pixels
     document.documentElement.style.setProperty('--vw', `${window.innerWidth / 100}px`);
 
+    document.documentElement.style.setProperty('--mvw', `${window.innerWidth / 100}px`);
+
 };
 
 // Set the initial value of --vw
