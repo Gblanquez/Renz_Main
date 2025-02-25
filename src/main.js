@@ -80,6 +80,21 @@ addScrambleAnimations();
 
 
 
+document.addEventListener('DOMContentLoaded', () => {
+    const textarea = document.getElementById('project-idea');
+
+    // Function to adjust height based on content
+    function adjustHeight() {
+        textarea.style.height = 'auto'; // Reset height to recalculate
+        textarea.style.height = `${textarea.scrollHeight}px`; // Set to content height
+    }
+
+    // Adjust height on input
+    textarea.addEventListener('input', adjustHeight);
+
+    // Initial adjustment in case placeholder affects height
+    adjustHeight();
+});
 
 
 

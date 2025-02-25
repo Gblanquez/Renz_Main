@@ -444,39 +444,72 @@ figure img{
 }
 
 
-.contact-form-container{
+.contact-form-container {
     display: flex;
     position: relative;
     width: 100%;
-    padding: 12vw;
+    padding: 13vw;
 }
 
-#contact-form{
+#contact-form {
     display: flex;
     flex-direction: column;
     gap: 2vw;
 }
 
-.form-group{
+.form-group {
     display: flex;
     flex-direction: column;
     gap: 0.3vw;
 }
 
-.submit-btn{
-   cursor: pointer;
+.submit-btn {
+    cursor: pointer;
+    text-transform: uppercase;
+    padding-top: 1vw;
+    padding-bottom: 1vw;
+    border-radius: 0.2vw;
+    border: none;
+
 }
+
+.form-group label{
+    font-size: calc(32 / 2300 * 100 * var(--vw));
+}
+
+.form-group input[type="text"]::placeholder,
+.form-group input[type="email"]::placeholder,
+.form-group textarea::placeholder {
+    opacity: 0 !important; /* Hide placeholder text */
+}
+
+.form-group input[type="radio"]{
+    width: 1vw;
+    height: 1vw;
+}
+
+.form-group input[type="radio"]:focus{
+    color: red;
+}
+
 .form-group input[type="text"],
 .form-group input[type="email"],
 .form-group textarea {
     width: 100%;
-    font-size: calc(64 / 2300 * 100 * var(--vw));
+    font-size: calc(14 / 2300 * 100 * var(--vw));
     text-transform: uppercase;
     background: transparent;
-    border: none; 
-    border-bottom: 0.5px solid #ccc; 
-    padding: 0.5vw 0; 
-    outline: none; 
+    border: none;
+    border-bottom: 0.5px solid #ccc;
+    padding: 0.5vw 0;
+    outline: none;
+    color: white; /* Typed text white */
+}
+
+.radio-group{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5vw;
 }
 
 .form-group textarea {
@@ -486,12 +519,25 @@ figure img{
     background: transparent;
     border: none;
     border-bottom: 1px solid #ccc;
-    padding: 10px 0; /* Match text/email inputs */
+    padding: 0.5vw 0;
     outline: none;
-    resize: none; /* Disable all resizing */
-    min-height: 80px; /* Minimum height to start (adjustable) */
-    height: auto; /* Allows JS to set height dynamically */
-    overflow: hidden; /* Hide scrollbar */
+    resize: none;
+    min-height: 1vw !important;
+    height: auto;
+    overflow: hidden;
+    color: white; /* Ensure textarea text white */
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #ccc; /* Light gray placeholders */
+    text-transform: uppercase;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="email"]:focus,
+.form-group textarea:focus {
+    border-bottom: 0.1vw solid #fff; /* White focus line */
 }
 
 .aboutWrapper{
