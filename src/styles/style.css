@@ -444,6 +444,55 @@ figure img{
 }
 
 
+.contact-form-container{
+    display: flex;
+    position: relative;
+    width: 100%;
+    padding: 12vw;
+}
+
+#contact-form{
+    display: flex;
+    flex-direction: column;
+    gap: 2vw;
+}
+
+.form-group{
+    display: flex;
+    flex-direction: column;
+    gap: 0.3vw;
+}
+
+.submit-btn{
+   cursor: pointer;
+}
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group textarea {
+    width: 100%;
+    font-size: calc(64 / 2300 * 100 * var(--vw));
+    text-transform: uppercase;
+    background: transparent;
+    border: none; 
+    border-bottom: 0.5px solid #ccc; 
+    padding: 0.5vw 0; 
+    outline: none; 
+}
+
+.form-group textarea {
+    width: 100%;
+    font-size: calc(14 / 2300 * 100 * var(--vw));
+    text-transform: uppercase;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #ccc;
+    padding: 10px 0; /* Match text/email inputs */
+    outline: none;
+    resize: none; /* Disable all resizing */
+    min-height: 80px; /* Minimum height to start (adjustable) */
+    height: auto; /* Allows JS to set height dynamically */
+    overflow: hidden; /* Hide scrollbar */
+}
 
 .aboutWrapper{
     padding: 8vw 2vw;
