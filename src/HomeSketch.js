@@ -12,7 +12,6 @@ import * as dat from 'dat.gui'
 import testTexture from '../img/texture.jpg'
 import imagesLoaded from 'imagesloaded';
 import { getASScrollInstance } from './smoothScroll';
-import { setVw } from './app.js';
 
 import { initializeAnimations, OutAnimation, initializeInsideAnimations} from './animation';
 
@@ -86,7 +85,6 @@ export default class HomeSketch{
         this.addClickEvents()
         this.render()
 
-        setVw()
 
 
 
@@ -125,7 +123,7 @@ export default class HomeSketch{
         }
 
         this.setPosition()
-        setVw()
+
     }
 
     setupResize(){

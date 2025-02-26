@@ -40,6 +40,3 @@ new App({
         domElement: document.getElementById('container')
     }),
 });
-
-
-
