@@ -8,7 +8,7 @@ import { initializeAnimations, OutAnimation, initializeInsideAnimations } from '
 
 gsap.registerPlugin(ScrollTrigger);
 
-const setVw = () => {
+export const setVw = () => {
     // Set --vw to 1% of the current viewport width in pixels
     document.documentElement.style.setProperty('--vw', `${window.innerWidth / 100}px`);
 
@@ -17,7 +17,9 @@ const setVw = () => {
 };
 
 // Set the initial value of --vw
-setVw();
+document.addEventListener('DOMContentLoaded',() => {
+    setVw();
+})
 
 // Update --vw on window resize
 window.addEventListener('resize', setVw);

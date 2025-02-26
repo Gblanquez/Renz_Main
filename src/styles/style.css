@@ -14,7 +14,7 @@
 
 
 
-h2,h3,h4,p,span{
+h2,h3,h4,p,span,a{
     font-size: calc(14 / 2300 * 100 * var(--vw));
     line-height: calc(18 / 2300 * 100 * var(--vw));
 }
@@ -691,10 +691,11 @@ font-weight: 500;
         --mvw: 0.0209vw; 
     }
 
-    h2,h3,h4,p,span,a,p{
+    h2,h3,h4,p,span,a{
         font-size: calc(12 / 480 * 100 * var(--mvw)) !important;
         line-height: calc(14 / 480 * 100 * var(--mvw)) !important;
     }
+
 
     .ab-t{
         max-width: 80% !important;
@@ -721,6 +722,8 @@ font-weight: 500;
     .aboutWrapper{
         padding-top: 18vw;
     }
+
+
 
   }
 

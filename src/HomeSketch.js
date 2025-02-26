@@ -12,6 +12,7 @@ import * as dat from 'dat.gui'
 import testTexture from '../img/texture.jpg'
 import imagesLoaded from 'imagesloaded';
 import { getASScrollInstance } from './smoothScroll';
+import { setVw } from './app.js';
 
 import { initializeAnimations, OutAnimation, initializeInsideAnimations} from './animation';
 
@@ -36,8 +37,8 @@ export default class HomeSketch{
         this.isGrown = false;
 
 
-        this.width = this.container.offsetWidth
-        this.height = this.container.offsetHeight
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
         
         // Setup scene
         this.scene = new THREE.Scene()
@@ -85,14 +86,16 @@ export default class HomeSketch{
         this.addClickEvents()
         this.render()
 
+        setVw()
+
 
 
     }
 
 
     resize() {
-        this.width = this.container.offsetWidth;
-        this.height = this.container.offsetHeight;
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
         this.renderer.setSize(this.width, this.height);
         this.camera.aspect = this.width / this.height;
         this.camera.updateProjectionMatrix();
@@ -120,6 +123,9 @@ export default class HomeSketch{
                 i.mesh.material.uniforms.uTextureSize.value.y = bounds.height;
             });
         }
+
+        this.setPosition()
+        setVw()
     }
 
     setupResize(){
