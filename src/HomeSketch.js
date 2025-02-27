@@ -85,7 +85,7 @@ export default class HomeSketch{
         this.addClickEvents()
         this.render()
         this.setupContainer()
-        this.fixMobileFontSizing()
+
 
 
 
@@ -686,95 +686,7 @@ updateScrollNumber() {
         }
     }
 
-    fixMobileFontSizing() {
-        // Only apply this fix on mobile devices
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (!isMobile) return;
-        
-        // Force an initial update to ensure ThreeJS matches CSS
-        this.forceUpdateSizing();
-        
-        // Set up a more robust observer system
-        this.setupSizingObservers();
-    }
 
-    forceUpdateSizing() {
-        // Force recalculation of all CSS-dependent elements
-        if (!this.imageStore) return;
-        
-        // Get computed styles after CSS variables have been applied
-        const computedStyles = window.getComputedStyle(document.documentElement);
-        const vwValue = parseFloat(computedStyles.getPropertyValue('--vw'));
-        
-        console.log("Updating ThreeJS sizing with vw value:", vwValue);
-        
-        // Force layout recalculation
-        document.body.offsetHeight;
-        
-        this.imageStore.forEach(item => {
-            // Get fresh bounds after CSS has been applied
-            const bounds = item.img.getBoundingClientRect();
-            
-            console.log(`Image bounds: ${bounds.width}x${bounds.height}`);
-            
-            // Update mesh dimensions
-            item.width = bounds.width;
-            item.height = bounds.height;
-            item.mesh.scale.set(bounds.width, bounds.height, 1);
-            
-            // Update position
-            item.top = bounds.top;
-            item.left = bounds.left + this.smoothScroll.currentPos;
-            
-            // Update uniforms
-            item.mesh.material.uniforms.uQuadSize.value.x = bounds.width;
-            item.mesh.material.uniforms.uQuadSize.value.y = bounds.height;
-            item.mesh.material.uniforms.uTextureSize.value.x = bounds.width;
-            item.mesh.material.uniforms.uTextureSize.value.y = bounds.height;
-        });
-        
-        // Update positions
-        this.setPosition();
-    }
-
-    setupSizingObservers() {
-        // 1. Watch for CSS variable changes
-        const cssObserver = new MutationObserver(() => {
-            console.log("CSS variables changed, updating ThreeJS");
-            this.forceUpdateSizing();
-        });
-        
-        cssObserver.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['style']
-        });
-        
-        // 2. Watch for orientation changes which may affect CSS
-        window.addEventListener('orientationchange', () => {
-            console.log("Orientation changed, updating ThreeJS");
-            // Wait for CSS to update before recalculating
-            setTimeout(() => this.forceUpdateSizing(), 100);
-        });
-        
-        // 3. Use ResizeObserver for general size changes
-        if (window.ResizeObserver) {
-            const resizeObserver = new ResizeObserver(entries => {
-                console.log("Resize detected, updating ThreeJS");
-                this.forceUpdateSizing();
-            });
-            resizeObserver.observe(document.documentElement);
-        }
-        
-        // 4. Add a special class to body to indicate ThreeJS is active
-        document.body.classList.add('threejs-active');
-        
-        // 5. Force update on window load to ensure everything is calculated correctly
-        window.addEventListener('load', () => {
-            console.log("Window loaded, final ThreeJS update");
-            setTimeout(() => this.forceUpdateSizing(), 200);
-        });
-    }
 
 }
 
