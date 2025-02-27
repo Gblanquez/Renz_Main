@@ -99,37 +99,38 @@ export default class HomeSketch{
         this.renderer.setSize(this.width, this.height);
         this.camera.aspect = this.width / this.height;
         this.camera.updateProjectionMatrix();
-    
         this.camera.fov = 2 * Math.atan((this.height / 2) / 600) * 180 / Math.PI;
-    
+
         this.materials.forEach(m => {
             m.uniforms.uResolution.value.x = this.width;
             m.uniforms.uResolution.value.y = this.height;
         });
 
-        // Force a recalculation of all image bounds
-        if (this.imageStore) {
-            this.imageStore.forEach(i => {
-                // Get fresh bounds after CSS variables have been applied
-                let bounds = i.img.getBoundingClientRect();
-                
-                // Update mesh properties
-                i.mesh.scale.set(bounds.width, bounds.height, 1);
-                i.top = bounds.top;
-                i.left = bounds.left + this.smoothScroll.currentPos;
-                i.width = bounds.width;
-                i.height = bounds.height;
+        // On mobile, force a more thorough update
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            // Wait a bit for CSS to update before recalculating
+            setTimeout(() => this.forceUpdateSizing(), 50);
+        } else {
+            // Standard desktop update
+            if (this.imageStore) {
+                this.imageStore.forEach(i => {
+                    let bounds = i.img.getBoundingClientRect();
+                    i.mesh.scale.set(bounds.width, bounds.height, 1);
+                    i.top = bounds.top;
+                    i.left = bounds.left + this.smoothScroll.currentPos;
+                    i.width = bounds.width;
+                    i.height = bounds.height;
 
-                // Update uniforms
-                i.mesh.material.uniforms.uQuadSize.value.x = bounds.width;
-                i.mesh.material.uniforms.uQuadSize.value.y = bounds.height;
-                i.mesh.material.uniforms.uTextureSize.value.x = bounds.width;
-                i.mesh.material.uniforms.uTextureSize.value.y = bounds.height;
-            });
+                    i.mesh.material.uniforms.uQuadSize.value.x = bounds.width;
+                    i.mesh.material.uniforms.uQuadSize.value.y = bounds.height;
+                    i.mesh.material.uniforms.uTextureSize.value.x = bounds.width;
+                    i.mesh.material.uniforms.uTextureSize.value.y = bounds.height;
+                });
+            }
         }
 
-        this.setPosition()
-
+        this.setPosition();
     }
 
     setupResize(){
@@ -691,58 +692,88 @@ updateScrollNumber() {
         
         if (!isMobile) return;
         
-        // Function to update ThreeJS elements based on CSS variables
-        const updateThreeJSSizing = () => {
-            // Get the current --vw value from CSS (now we only use --vw)
-            const vwValue = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vw'));
+        // Force an initial update to ensure ThreeJS matches CSS
+        this.forceUpdateSizing();
+        
+        // Set up a more robust observer system
+        this.setupSizingObservers();
+    }
+
+    forceUpdateSizing() {
+        // Force recalculation of all CSS-dependent elements
+        if (!this.imageStore) return;
+        
+        // Get computed styles after CSS variables have been applied
+        const computedStyles = window.getComputedStyle(document.documentElement);
+        const vwValue = parseFloat(computedStyles.getPropertyValue('--vw'));
+        
+        console.log("Updating ThreeJS sizing with vw value:", vwValue);
+        
+        // Force layout recalculation
+        document.body.offsetHeight;
+        
+        this.imageStore.forEach(item => {
+            // Get fresh bounds after CSS has been applied
+            const bounds = item.img.getBoundingClientRect();
             
-            // Apply to ThreeJS elements if imageStore exists
-            if (this.imageStore) {
-                this.imageStore.forEach(item => {
-                    // Recalculate bounds based on current CSS
-                    const bounds = item.img.getBoundingClientRect();
-                    
-                    // Update mesh dimensions
-                    item.width = bounds.width;
-                    item.height = bounds.height;
-                    item.mesh.scale.set(bounds.width, bounds.height, 1);
-                    
-                    // Update uniforms
-                    item.mesh.material.uniforms.uQuadSize.value.x = bounds.width;
-                    item.mesh.material.uniforms.uQuadSize.value.y = bounds.height;
-                    item.mesh.material.uniforms.uTextureSize.value.x = bounds.width;
-                    item.mesh.material.uniforms.uTextureSize.value.y = bounds.height;
-                });
-                
-                // Update positions
-                this.setPosition();
-            }
-        };
-        
-        // Initial update
-        updateThreeJSSizing();
-        
-        // Add a class to indicate ThreeJS is active
-        document.documentElement.classList.add('threejs-active');
-        
-        // Set up a MutationObserver to detect changes in CSS variables
-        // This is more reliable than ResizeObserver for CSS variable changes
-        const observer = new MutationObserver(() => {
-            updateThreeJSSizing();
+            console.log(`Image bounds: ${bounds.width}x${bounds.height}`);
+            
+            // Update mesh dimensions
+            item.width = bounds.width;
+            item.height = bounds.height;
+            item.mesh.scale.set(bounds.width, bounds.height, 1);
+            
+            // Update position
+            item.top = bounds.top;
+            item.left = bounds.left + this.smoothScroll.currentPos;
+            
+            // Update uniforms
+            item.mesh.material.uniforms.uQuadSize.value.x = bounds.width;
+            item.mesh.material.uniforms.uQuadSize.value.y = bounds.height;
+            item.mesh.material.uniforms.uTextureSize.value.x = bounds.width;
+            item.mesh.material.uniforms.uTextureSize.value.y = bounds.height;
         });
         
-        observer.observe(document.documentElement, {
+        // Update positions
+        this.setPosition();
+    }
+
+    setupSizingObservers() {
+        // 1. Watch for CSS variable changes
+        const cssObserver = new MutationObserver(() => {
+            console.log("CSS variables changed, updating ThreeJS");
+            this.forceUpdateSizing();
+        });
+        
+        cssObserver.observe(document.documentElement, {
             attributes: true,
-            attributeFilter: ['style'] // Watch for style attribute changes
+            attributeFilter: ['style']
         });
         
-        // Also keep the resize observer for size changes
+        // 2. Watch for orientation changes which may affect CSS
+        window.addEventListener('orientationchange', () => {
+            console.log("Orientation changed, updating ThreeJS");
+            // Wait for CSS to update before recalculating
+            setTimeout(() => this.forceUpdateSizing(), 100);
+        });
+        
+        // 3. Use ResizeObserver for general size changes
         if (window.ResizeObserver) {
-            const resizeObserver = new ResizeObserver(() => {
-                updateThreeJSSizing();
+            const resizeObserver = new ResizeObserver(entries => {
+                console.log("Resize detected, updating ThreeJS");
+                this.forceUpdateSizing();
             });
             resizeObserver.observe(document.documentElement);
         }
+        
+        // 4. Add a special class to body to indicate ThreeJS is active
+        document.body.classList.add('threejs-active');
+        
+        // 5. Force update on window load to ensure everything is calculated correctly
+        window.addEventListener('load', () => {
+            console.log("Window loaded, final ThreeJS update");
+            setTimeout(() => this.forceUpdateSizing(), 200);
+        });
     }
 
 }
