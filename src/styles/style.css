@@ -6,17 +6,29 @@
   }
 
   :root {
-    --vw: 0.01vw;
+    /* --vw: 0.01vw; */
+    font-size: 12px;
   }
+
 
   
 
 
 
 
-h2,h3,h4,p,span,a{
+/* h2,h3,h4,p,span,a{
     font-size: calc(14 / 2300 * 100 * var(--vw));
     line-height: calc(18 / 2300 * 100 * var(--vw));
+} */
+
+h2,h3,h4,p,span,a{
+    font-size: 1rem;
+    line-height: 110%;
+}
+
+#text {
+    font-size: 1rem;
+    line-height: 110%;
 }
 
 
@@ -26,7 +38,8 @@ body{
     font-weight: 300;
     font-style: normal;
     color: #fff;
-    font-size: calc(14 / 2300 * 100 * var(--vw));
+    /* font-size: calc(14 / 2300 * 100 * var(--vw)); */
+    font-size: 1rem;
     text-transform: uppercase;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -772,12 +785,14 @@ font-weight: 500;
 
 .info2{
     font-weight: 700;
-    font-size: calc(14 / 2300 * 100 * var(--vw));
+    font-size: 1rem;
+    line-height: 110%;
 }
 
 .scramble-text{
     font-weight: 300;
-    font-size: calc(14 / 2300 * 100 * var(--vw));
+    font-size: 1rem;
+    line-height: 110%;
 }
 
 .word-wrap{
