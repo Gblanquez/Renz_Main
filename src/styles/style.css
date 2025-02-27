@@ -688,12 +688,12 @@ font-weight: 500;
 
   @media (max-width: 480px) {
     :root {
-        --mvw: 0.0209vw; 
+        --vw: 0.0209vw; 
     }
 
     h2,h3,h4,p,span,a{
-        font-size: calc(12 / 480 * 100 * var(--mvw)) !important;
-        line-height: calc(14 / 480 * 100 * var(--mvw)) !important;
+        font-size: calc(12 / 480 * 100 * var(--vw)) !important;
+        line-height: calc(14 / 480 * 100 * var(--vw)) !important;
     }
 
 
@@ -702,8 +702,8 @@ font-weight: 500;
     }
 
     .mainText{
-        font-size: calc(22 / 480 * 100 * var(--mvw)) !important;
-        line-height: calc(22 / 480 * 100 * var(--mvw)) !important;
+        font-size: calc(22 / 480 * 100 * var(--vw)) !important;
+        line-height: calc(22 / 480 * 100 * var(--vw)) !important;
     }
 
     .grid-container {

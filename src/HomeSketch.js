@@ -107,18 +107,22 @@ export default class HomeSketch{
             m.uniforms.uResolution.value.y = this.height;
         });
 
+        // Force a recalculation of all image bounds
         if (this.imageStore) {
             this.imageStore.forEach(i => {
+                // Get fresh bounds after CSS variables have been applied
                 let bounds = i.img.getBoundingClientRect();
+                
+                // Update mesh properties
                 i.mesh.scale.set(bounds.width, bounds.height, 1);
                 i.top = bounds.top;
                 i.left = bounds.left + this.smoothScroll.currentPos;
                 i.width = bounds.width;
                 i.height = bounds.height;
 
+                // Update uniforms
                 i.mesh.material.uniforms.uQuadSize.value.x = bounds.width;
                 i.mesh.material.uniforms.uQuadSize.value.y = bounds.height;
-
                 i.mesh.material.uniforms.uTextureSize.value.x = bounds.width;
                 i.mesh.material.uniforms.uTextureSize.value.y = bounds.height;
             });
@@ -689,8 +693,8 @@ updateScrollNumber() {
         
         // Function to update ThreeJS elements based on CSS variables
         const updateThreeJSSizing = () => {
-            // Get the current --mvw value from CSS
-            const mvwValue = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mvw'));
+            // Get the current --vw value from CSS (now we only use --vw)
+            const vwValue = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vw'));
             
             // Apply to ThreeJS elements if imageStore exists
             if (this.imageStore) {
@@ -721,7 +725,18 @@ updateScrollNumber() {
         // Add a class to indicate ThreeJS is active
         document.documentElement.classList.add('threejs-active');
         
-        // Set up a resize observer to detect changes in CSS variables
+        // Set up a MutationObserver to detect changes in CSS variables
+        // This is more reliable than ResizeObserver for CSS variable changes
+        const observer = new MutationObserver(() => {
+            updateThreeJSSizing();
+        });
+        
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['style'] // Watch for style attribute changes
+        });
+        
+        // Also keep the resize observer for size changes
         if (window.ResizeObserver) {
             const resizeObserver = new ResizeObserver(() => {
                 updateThreeJSSizing();
