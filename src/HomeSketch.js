@@ -85,6 +85,7 @@ export default class HomeSketch{
         this.addClickEvents()
         this.render()
         this.setupContainer()
+        this.fixMobileFontSizing()
 
 
 
@@ -128,7 +129,10 @@ export default class HomeSketch{
     }
 
     setupResize(){
-        window.addEventListener('resize',this.resize.bind(this));
+        window.addEventListener('resize', () => {
+            this.resize.bind(this)();
+            // this.setupFontSizing(); 
+        });
     }
 
     addClickEvents() {
@@ -674,6 +678,55 @@ updateScrollNumber() {
                 height: '100%',
                 contain: 'content'
             });
+        }
+    }
+
+    fixMobileFontSizing() {
+        // Only apply this fix on mobile devices
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (!isMobile) return;
+        
+        // Function to update ThreeJS elements based on CSS variables
+        const updateThreeJSSizing = () => {
+            // Get the current --mvw value from CSS
+            const mvwValue = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mvw'));
+            
+            // Apply to ThreeJS elements if imageStore exists
+            if (this.imageStore) {
+                this.imageStore.forEach(item => {
+                    // Recalculate bounds based on current CSS
+                    const bounds = item.img.getBoundingClientRect();
+                    
+                    // Update mesh dimensions
+                    item.width = bounds.width;
+                    item.height = bounds.height;
+                    item.mesh.scale.set(bounds.width, bounds.height, 1);
+                    
+                    // Update uniforms
+                    item.mesh.material.uniforms.uQuadSize.value.x = bounds.width;
+                    item.mesh.material.uniforms.uQuadSize.value.y = bounds.height;
+                    item.mesh.material.uniforms.uTextureSize.value.x = bounds.width;
+                    item.mesh.material.uniforms.uTextureSize.value.y = bounds.height;
+                });
+                
+                // Update positions
+                this.setPosition();
+            }
+        };
+        
+        // Initial update
+        updateThreeJSSizing();
+        
+        // Add a class to indicate ThreeJS is active
+        document.documentElement.classList.add('threejs-active');
+        
+        // Set up a resize observer to detect changes in CSS variables
+        if (window.ResizeObserver) {
+            const resizeObserver = new ResizeObserver(() => {
+                updateThreeJSSizing();
+            });
+            resizeObserver.observe(document.documentElement);
         }
     }
 

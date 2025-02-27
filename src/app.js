@@ -11,9 +11,15 @@ gsap.registerPlugin(ScrollTrigger);
 export const setVw = () => {
     // Set --vw to 1% of the current viewport width in pixels
     document.documentElement.style.setProperty('--vw', `${window.innerWidth / 100}px`);
-
-    document.documentElement.style.setProperty('--mvw', `${window.innerWidth / 100}px`);
-
+    
+    // Set --mvw differently for mobile screens
+    if (window.innerWidth <= 480) {
+        // For mobile, use the mobile-specific calculation (matching your CSS)
+        document.documentElement.style.setProperty('--mvw', `${window.innerWidth / 480 * 0.0209 * 100}px`);
+    } else {
+        // For desktop, --mvw can be the same as --vw
+        document.documentElement.style.setProperty('--mvw', `${window.innerWidth / 100}px`);
+    }
 };
 
 // Set the initial value of --vw
