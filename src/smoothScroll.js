@@ -9,81 +9,103 @@ export function getASScrollInstance() {
         
         instance = new ASScroll({
             disableRaf: true,
-            touchScrollType: isMobile ? 'scrollTop' : 'transform', // Use native scrolling on mobile
+            touchScrollType: isMobile ? 'scrollTop' : 'transform',
             useKeyboard: true,
             ease: 0.1,
-            touchEase: isMobile ? 1 : 0.4, // No easing on mobile for responsiveness
-            wheelMultiplier: isMobile ? 0.7 : 1, // Reduce wheel sensitivity on mobile
+            touchEase: isMobile ? 1 : 0.4,
+            wheelMultiplier: isMobile ? 0.7 : 1,
         });
 
+        // Enable with appropriate settings
         instance.enable({
             horizontalScroll: !document.body.classList.contains('b-inside'),
             smartphone: {
-                smooth: false, // Disable smooth scrolling on mobile for better performance
+                smooth: false,
                 horizontalScroll: !document.body.classList.contains('b-inside')
             },
             tablet: {
-                smooth: false, // Disable smooth scrolling on tablets
+                smooth: false,
                 horizontalScroll: !document.body.classList.contains('b-inside')
             }
         });
 
         // Add vertical-to-horizontal scroll mapping for mobile on homepage
         if (isMobile && !document.body.classList.contains('b-inside')) {
-            setupVerticalToHorizontalScroll(instance);
+            // Wait a moment for DOM to be ready
+            setTimeout(() => {
+                setupVerticalToHorizontalScroll(instance);
+            }, 500);
         }
     }
     return instance;
 }
 
 function setupVerticalToHorizontalScroll(scrollInstance) {
-    // Create a touch handler to convert vertical swipes to horizontal scrolling
+    // Get the main scrollable element
+    const scrollContainer = document.querySelector('.asscroll') || 
+                           document.querySelector('main') || 
+                           document.body;
+    
+    if (!scrollContainer) {
+        console.warn('Could not find scroll container');
+        return;
+    }
+    
     let startY = 0;
-    let startX = 0;
-    let currentX = 0;
-    let isScrolling = false;
+    let lastY = 0;
+    let currentScrollPos = 0;
     
-    // Get the scrollable container
-    const scrollContainer = document.querySelector('.asscroll-container') || document.querySelector('main');
-    
-    if (!scrollContainer) return;
-    
-    // Touch start event
-    document.addEventListener('touchstart', (e) => {
-        startY = e.touches[0].clientY;
-        startX = e.touches[0].clientX;
-        currentX = scrollInstance.currentPos;
-        isScrolling = true;
-    }, { passive: false });
-    
-    // Touch move event
-    document.addEventListener('touchmove', (e) => {
-        if (!isScrolling) return;
+    // Directly handle wheel events for vertical scrolling
+    window.addEventListener('wheel', (e) => {
+        if (document.body.classList.contains('b-inside')) return;
         
-        const currentY = e.touches[0].clientY;
-        const deltaY = startY - currentY; // How much vertical movement
+        e.preventDefault();
         
-        // Convert vertical movement to horizontal scrolling
-        // Adjust the multiplier (2.0) to control sensitivity
-        const newPosition = currentX + (deltaY * 2.0);
+        // Convert vertical delta to horizontal scroll
+        // Adjust multiplier for sensitivity
+        const scrollAmount = e.deltaY * 1.5;
+        scrollInstance.currentPos += scrollAmount;
         
-        // Update scroll position
-        scrollInstance.currentPos = newPosition;
-        
-        // Prevent default only if primarily scrolling vertically
-        // This allows normal horizontal swiping to still work
-        const currentTouchX = e.touches[0].clientX;
-        const deltaX = Math.abs(startX - currentTouchX);
-        
-        if (Math.abs(deltaY) > deltaX) {
-            e.preventDefault();
+        // Force an update
+        if (typeof scrollInstance.update === 'function') {
+            scrollInstance.update();
         }
     }, { passive: false });
     
-    // Touch end event
-    document.addEventListener('touchend', () => {
-        isScrolling = false;
-    }, { passive: true });
+    // Handle touch events for mobile
+    document.addEventListener('touchstart', (e) => {
+        if (document.body.classList.contains('b-inside')) return;
+        
+        startY = e.touches[0].clientY;
+        lastY = startY;
+        currentScrollPos = scrollInstance.currentPos;
+    }, { passive: false });
+    
+    document.addEventListener('touchmove', (e) => {
+        if (document.body.classList.contains('b-inside')) return;
+        
+        const currentY = e.touches[0].clientY;
+        const deltaY = lastY - currentY;
+        lastY = currentY;
+        
+        // Convert vertical swipe to horizontal scroll
+        // Adjust multiplier for sensitivity
+        const scrollAmount = deltaY * 2.5;
+        
+        // Update ASScroll position directly
+        scrollInstance.currentPos += scrollAmount;
+        
+        // Force an update
+        if (typeof scrollInstance.update === 'function') {
+            scrollInstance.update();
+        }
+        
+        // Prevent default to avoid competing with native scroll
+        e.preventDefault();
+    }, { passive: false });
+    
+    // For debugging
+    console.log('Vertical to horizontal scroll mapping enabled');
 }
 
 export function destroyASScrollInstance() {
