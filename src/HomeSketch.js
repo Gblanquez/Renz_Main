@@ -84,6 +84,7 @@ export default class HomeSketch{
         this.composerPass()
         this.addClickEvents()
         this.render()
+        this.setupContainer()
 
 
 
@@ -559,31 +560,43 @@ void main() {
     render() {
         if (!this.isActive) return;
         
-        this.time += 0.05;
-
+        // Detect if we're on mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Use a smaller time increment on mobile for better performance
+        this.time += isMobile ? 0.03 : 0.05;
+        
+        // Update uniforms
         this.material.uniforms.time.value = this.time;
         this.backgroundMaterial.uniforms.time.value = this.time;
-
+        
         this.materials.forEach(m => {
             m.uniforms.time.value = this.time;
         });
-
+        
+        // Calculate scroll speed
         this.scrollSpeed = this.smoothScroll.currentPos - this.prevScrollPos;
         this.prevScrollPos = this.smoothScroll.currentPos;
-
+        
+        // Limit effect intensity on mobile
         if (this.customPass) {
-            this.customPass.uniforms.scrollSpeed.value = this.scrollSpeed;
+            this.customPass.uniforms.scrollSpeed.value = isMobile ? 
+                Math.min(Math.max(this.scrollSpeed * 0.7, -5), 5) : 
+                this.scrollSpeed;
         }
-
+        
+        // Update scroll and positions
         this.smoothScroll.update();
         this.setPosition();
-
-        if (this.mesh) {
-            this.mesh.rotation.x = this.time / 2000;
-            this.mesh.rotation.y = this.time / 1000;
+        
+        // Render with appropriate method based on device
+        if (isMobile) {
+            // Simpler rendering for mobile
+            this.renderer.render(this.scene, this.camera);
+        } else {
+            // Full composer effects for desktop
+            this.composer.render();
         }
-
-        this.composer.render();
         
         this.rafID = requestAnimationFrame(this.render.bind(this));
     }
@@ -620,6 +633,39 @@ void main() {
         // Clear scroll
         if (this.smoothScroll) {
             this.smoothScroll.disable();
+        }
+    }
+
+    setupContainer() {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            // Use a more mobile-friendly approach
+            Object.assign(this.container.style, {
+                position: 'absolute',
+                top: '0px',
+                left: '0px',
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden'
+            });
+            
+            // For iOS specifically
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                document.body.style.height = '100%';
+                document.documentElement.style.height = '100%';
+                document.documentElement.style.overflow = 'hidden';
+            }
+        } else {
+            // Desktop approach
+            Object.assign(this.container.style, {
+                position: 'fixed',
+                top: '0px',
+                left: '0px',
+                width: '100%',
+                height: '100%',
+                contain: 'content'
+            });
         }
     }
 
