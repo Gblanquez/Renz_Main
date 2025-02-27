@@ -503,6 +503,10 @@ updateScrollNumber() {
         this.renderPass = new RenderPass(this.scene, this.camera);
         this.composer.addPass(this.renderPass);
     
+        // Detect if we're on mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Use a simpler shader for mobile
         this.myEffect = {
             uniforms: {
                 "tDiffuse": { value: null },
@@ -516,39 +520,43 @@ updateScrollNumber() {
                     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
                 }
             `,
-            fragmentShader: `
-uniform sampler2D tDiffuse;
-varying vec2 vUv;
-uniform float scrollSpeed;
-uniform float time;
+            fragmentShader: isMobile ? 
+            // Simple mobile shader
+            `
+            uniform sampler2D tDiffuse;
+            varying vec2 vUv;
+            
+            void main() {
+                gl_FragColor = texture2D(tDiffuse, vUv);
+            }
+            ` : 
+            // Full desktop shader (your existing shader code)
+            `
+            uniform sampler2D tDiffuse;
+            varying vec2 vUv;
+            uniform float scrollSpeed;
+            uniform float time;
 
-void main() {
-    vec2 newUV = vUv;
+            void main() {
+                vec2 newUV = vUv;
 
-    // Define wave effect area
-    float center = 0.5;
-    float width = 0.2;  // Defines how much of the screen is affected
-    float smoothRange = 0.1; // Smooth transition for a softer fade
+                // Define wave effect area
+                float center = 0.5;
+                float width = 0.2;
+                float smoothRange = 0.1;
 
-    // Softened smoothstep transition
-    float area = smoothstep(center - width, center - width + smoothRange, vUv.x) * 
-                 (1.0 - smoothstep(center + width - smoothRange, center + width, vUv.x));
+                float area = smoothstep(center - width, center - width + smoothRange, vUv.x) * 
+                             (1.0 - smoothstep(center + width - smoothRange, center + width, vUv.x));
 
-    // Shift wave effect so the strongest distortion is in the middle
-    float waveEffect = cos(time * 1.0 + (vUv.x - center) * 10.0) * 0.5 + 0.5;
+                float waveEffect = cos(time * 1.0 + (vUv.x - center) * 10.0) * 0.5 + 0.5;
+                float edgeFade = smoothstep(width, 0.0, abs(vUv.x - center));  
+                float absScrollSpeed = clamp(abs(scrollSpeed), 0.0, 10.0);
+                float scaleEffect = 1.0 - absScrollSpeed * 0.014 * waveEffect * area * edgeFade;
 
-    // Gradual effect reduction toward edges
-    float edgeFade = smoothstep(width, 0.0, abs(vUv.x - center));  
+                newUV = (newUV - vec2(0.5, 0.5)) * scaleEffect + vec2(0.5, 0.5);
 
-    // Clamp effect intensity
-    float absScrollSpeed = clamp(abs(scrollSpeed), 0.0, 10.0);
-    float scaleEffect = 1.0 - absScrollSpeed * 0.014 * waveEffect * area * edgeFade;
-
-    // Apply distortion
-    newUV = (newUV - vec2(0.5, 0.5)) * scaleEffect + vec2(0.5, 0.5);
-
-    gl_FragColor = texture2D(tDiffuse, newUV);
-}
+                gl_FragColor = texture2D(tDiffuse, newUV);
+            }
             `
         };
     
