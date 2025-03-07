@@ -121,7 +121,16 @@ padding: 0;
 }
 
 
-canvas{display: block}
+canvas{
+    display: block;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: -1 !important;
+    pointer-events: none; 
+}
 
 #container{
     width: 100vw;
@@ -157,8 +166,8 @@ canvas{display: block}
 }
 
 .projectImg{
-    width: calc(25vw + 40px);
-    height: calc((16vw + 40px) * 1.4);
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     opacity: 0;
 }
@@ -203,48 +212,20 @@ canvas{display: block}
 
 .project_grid{
     display: grid;
-    width: calc(100% - 4vw);
+    width: 100%;
     margin: 0 auto;
-    padding: calc(2vw + 12px);
+    padding: 2vw;
     grid-template-columns: repeat(4, 1fr);
-    grid-gap: calc(0.2vw + 12px);
-    /* box-sizing: border-box; */
-    max-width: 100%;
+    grid-gap: 1.4vw;
+    box-sizing: border-box;
 }
 
-
-/* First row - 3 items */
-.project_grid_item:nth-child(-n+2) {
-    grid-column: span 1;
-}
-
-.project_grid_item:nth-child(3) {
-    grid-column: 4;
-}
-
-/* Pattern for remaining items */
-.project_grid_item:nth-child(6n+4) {
-    grid-column: 1 / span 2;
-}
-
-.project_grid_item:nth-child(6n+5) {
-    grid-column: 3 / span 2;
-}
-
-.project_grid_item:nth-child(6n+6) {
-    grid-column: 2 / span 2;
-}
-
-.project_grid_item:nth-child(6n+7) {
-    grid-column: 4 / span 1;
-}
-
-.project_grid_item:nth-child(6n+8) {
-    grid-column: 1 / span 2;
-}
-
-.project_grid_item:nth-child(6n+9) {
-    grid-column: 3 / span 1;
+.project_grid_item{
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    object-fit: cover;
+    position: relative;
 }
 
 
@@ -454,6 +435,7 @@ figure img{
     position: relative;
     width: 100%;
     padding: 13vw;
+    box-sizing: border-box;
 }
 
 #contact-form {
@@ -482,7 +464,10 @@ figure img{
 
 .form-group label{
     font-size: calc(32 / 2300 * 100 * var(--vw));
+    color: rgb(255, 255, 255);
+    opacity: 0.7;
 }
+
 
 .form-group input[type="text"]::placeholder,
 .form-group input[type="email"]::placeholder,
@@ -496,7 +481,7 @@ figure img{
     -moz-appearance: none;
     width: 1vw;
     height: 1vw;
-    border-radius: 100%;
+    border-radius: 8%;
     background: gray;
     opacity: 0.5;
     border: 0.5vw;
@@ -523,7 +508,8 @@ figure img{
     border-bottom: 0.5px solid #ccc;
     padding: 0.5vw 0;
     outline: none;
-    color: white; /* Typed text white */
+    color: white;
+    /* max-height: 4vw; */
 }
 
 .radio-group{
@@ -545,10 +531,10 @@ figure img{
     padding: 0.5vw 0;
     outline: none;
     resize: none;
-    min-height: 1vw !important;
     height: auto;
     overflow: hidden;
-    color: white; /* Ensure textarea text white */
+    color: white;
+    /* max-height: 4vw !important; */
 }
 
 .form-group input::placeholder,
@@ -691,6 +677,7 @@ font-weight: 500;
         --vw: 0.0209vw; 
     }
 
+
     h2,h3,h4,p,span,a{
         font-size: calc(12 / 480 * 100 * var(--vw)) !important;
         line-height: calc(14 / 480 * 100 * var(--vw)) !important;
@@ -724,15 +711,76 @@ font-weight: 500;
     }
 
 
+    #contact-form {
+        display: flex;
+        flex-direction: column;
+        gap: 5vw;
+        width: 100%;
+    }
+
+    .form-group label{
+        font-size: calc(14 / 480 * 100 * var(--vw));
+        line-height: calc(14 / 480 * 100 * var(--vw));
+    }
+
+    .submit-btn {
+        font-size: calc(16 / 480 * 100 * var(--vw));
+        font-weight: 500;
+        cursor: pointer;
+        text-transform: uppercase;
+        padding-top: 1vw;
+        padding-bottom: 1vw;
+        border-radius: 0.2vw;
+        border: none;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="email"],
+    .form-group textarea {
+    
+    width: 100%;
+    font-size: calc(14 / 480 * 100 * var(--vw));
+    text-transform: uppercase;
+    background: transparent;
+    border: none;
+    border-bottom: 0.5px solid #ccc;
+    padding: 0.5vw 0;
+    outline: none;
+    color: white; 
+}
+
+
+.form-group input[type="radio"] {
+    appearance: none; 
+    -webkit-appearance: none; 
+    -moz-appearance: none;
+    width: calc(14 / 480 * 100 * var(--vw));
+    height: calc(14 / 480 * 100 * var(--vw));
+    border-radius: 8%;
+    background: gray;
+    opacity: 0.5;
+    border: 0.5vw;
+    border-color: #eee;
+}
+
+
+.contact-form-container {
+    display: flex;
+    position: relative;
+    width: 100%;
+    padding: 22vw 3vw 4vw 13vw;
+    box-sizing: border-box;
+}
+
+.radio-group{
+    display: flex;
+    flex-direction: column;
+    gap: 1.8vw;
+}
+
+
 
   }
-
-  
-
-
-
-
-
 
   .grid-item ul {
     list-style-type: none; 
