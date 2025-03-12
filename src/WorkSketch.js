@@ -54,7 +54,14 @@ export default class WorkSketch{
         this.renderer.setSize(this.width, this.height)
 
 
-        this.smoothScroll = getASScrollInstance();
+        this.smoothScroll = options.smoothScroll;
+
+        // Add scroll update listener if needed
+        if (this.smoothScroll) {
+            this.smoothScroll.on('update', () => {
+                this.updateScrollNumber();
+            });
+        }
 
         // Initialize
         this.materials = []
@@ -110,10 +117,10 @@ export default class WorkSketch{
         // Calculate its bottommost position
         const lastMeshBottom = lastMesh.top + lastMesh.height;
     
-        // Total scrollable distance: either max scroll or last mesh’s bottom position
+        // Total scrollable distance: either max scroll or last mesh's bottom position
         const totalScrollableDistance = Math.max(this.maxScroll, lastMeshBottom - window.innerHeight);
     
-        // Get the current scroll position, making sure it doesn’t exceed max
+        // Get the current scroll position, making sure it doesn't exceed max
         let scrollY = Math.min(this.smoothScroll.currentPos, totalScrollableDistance);
     
         // Calculate percentage
@@ -126,15 +133,17 @@ export default class WorkSketch{
     setPosition() {
         let lastMeshBottom = 0;
     
-        if (this.imageStore) {
+        if (this.imageStore && this.smoothScroll) {  // Add smoothScroll check
             this.imageStore.forEach(o => {
+                const currentPos = this.smoothScroll?.currentPos || 0;
+                
                 o.mesh.position.x = o.left - this.width / 2 + o.width / 2;
-                o.mesh.position.y = -o.top + this.height / 2 - o.height / 2 + (this.smoothScroll ? this.smoothScroll.currentPos : 0);
+                o.mesh.position.y = -o.top + this.height / 2 - o.height / 2 + currentPos;
     
                 lastMeshBottom = Math.max(lastMeshBottom, o.mesh.position.y - o.height / 2);
             });
     
-            this.maxScroll = lastMeshBottom - this.height / 2; // Adjust for vertical scroll
+            this.maxScroll = lastMeshBottom - this.height / 2;
         }
     
         this.updateScrollNumber();
@@ -415,34 +424,38 @@ export default class WorkSketch{
 
     destroy() {
         this.isActive = false;
-
-        // Clear all meshes
-        this.imageStore.forEach(item => {
-            this.scene.remove(item.mesh);
-            item.material.dispose();
-            item.mesh.geometry.dispose();
-        });
-
+        
+        // Clear all meshes and materials
+        if (this.imageStore) {
+            this.imageStore.forEach(item => {
+                this.scene.remove(item.mesh);
+                item.material.dispose();
+                item.mesh.geometry.dispose();
+            });
+        }
+        
         // Clear arrays
         this.imageStore = [];
         this.materials = [];
-
-        // Dispose of renderer and remove from DOM
-        this.renderer.dispose();
-        this.renderer.domElement.remove();
-
-        // Clear composer and its passes
+        
+        // Dispose of renderer and remove canvas
+        if (this.renderer) {
+            this.renderer.dispose();
+            this.renderer.domElement.remove();
+        }
+        
+        // Clear composer and passes
         if (this.composer) {
             this.composer.passes.forEach(pass => pass.dispose());
             this.composer = null;
         }
-
-        // Cancel animation frame if it exists
+        
+        // Cancel animation frame
         if (this.rafID) {
             cancelAnimationFrame(this.rafID);
         }
-
-        // Clear scroll
+        
+        // Clear scroll instance
         if (this.smoothScroll) {
             this.smoothScroll.disable();
         }

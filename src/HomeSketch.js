@@ -58,10 +58,12 @@ export default class HomeSketch{
 
 
 
-        this.smoothScroll = getASScrollInstance();
-        this.smoothScroll.on('update', () => {
-            this.updateScrollNumber();
-        });
+        this.smoothScroll = options.smoothScroll;
+        if (this.smoothScroll) {
+            this.smoothScroll.on('update', () => {
+                this.updateScrollNumber();
+            });
+        }
 
 
         //Custom Effect Controllers
@@ -466,24 +468,14 @@ export default class HomeSketch{
 
 updateScrollNumber() {
     const nmElement = document.querySelector('.nm');
-    if (!nmElement || !this.imageStore || this.imageStore.length === 0) return;
+    if (!nmElement || !this.imageStore || !this.smoothScroll || this.imageStore.length === 0) return;
 
-    // Get last mesh
     const lastMesh = this.imageStore[this.imageStore.length - 1];
-
-    // Calculate its rightmost position (assuming mesh position is in pixels)
     const lastMeshRight = lastMesh.left + lastMesh.width;
-
-    // Total scrollable distance: either smoothScroll max or the last mesh's right position
     const totalScrollableDistance = Math.max(this.maxScroll, lastMeshRight - window.innerWidth);
+    const scrollX = Math.min(this.smoothScroll?.currentPos || 0, totalScrollableDistance);
+    const percentage = Math.round((scrollX / totalScrollableDistance) * 100);
 
-    // Get the current scroll position, making sure it doesn't exceed max
-    let scrollX = Math.min(this.smoothScroll.currentPos, totalScrollableDistance);
-
-    // Calculate percentage
-    let percentage = Math.round((scrollX / totalScrollableDistance) * 100);
-
-    // Update the text
     nmElement.textContent = percentage;
 }
 
@@ -491,15 +483,18 @@ updateScrollNumber() {
     setPosition() {
         let lastMeshRight = 0;
     
-        if (this.imageStore) {
+        if (this.imageStore && this.smoothScroll) {  // Add smoothScroll check
             this.imageStore.forEach(o => {
-                o.mesh.position.x = -this.smoothScroll.currentPos + o.left - this.width / 2 + o.width / 2;
+                // Use optional chaining and default to 0 if currentPos is undefined
+                const currentPos = this.smoothScroll?.currentPos || 0;
+                
+                o.mesh.position.x = -currentPos + o.left - this.width / 2 + o.width / 2;
                 o.mesh.position.y = -o.top + this.height / 2 - o.height / 2;
     
                 lastMeshRight = Math.max(lastMeshRight, o.mesh.position.x + o.width / 2);
             });
     
-            this.maxScroll = lastMeshRight - this.width / 2; // Adjust for horizontal scroll
+            this.maxScroll = lastMeshRight - this.width / 2;
         }
     
         this.updateScrollNumber();
@@ -591,20 +586,22 @@ updateScrollNumber() {
             m.uniforms.time.value = this.time;
         });
         
-        // Calculate scroll speed
-        this.scrollSpeed = this.smoothScroll.currentPos - this.prevScrollPos;
-        this.prevScrollPos = this.smoothScroll.currentPos;
+        // Safely calculate scroll speed
+        if (this.smoothScroll) {
+            this.scrollSpeed = (this.smoothScroll.currentPos || 0) - (this.prevScrollPos || 0);
+            this.prevScrollPos = this.smoothScroll.currentPos || 0;
+        }
         
-        // Limit effect intensity on mobile
+        // Update custom pass
         if (this.customPass) {
-            this.customPass.uniforms.scrollSpeed.value = isMobile ? 
-                Math.min(Math.max(this.scrollSpeed * 0.7, -5), 5) : 
-                this.scrollSpeed;
+            this.customPass.uniforms.scrollSpeed.value = this.scrollSpeed || 0;
         }
         
         // Update scroll and positions
-        this.smoothScroll.update();
-        this.setPosition();
+        if (this.smoothScroll) {
+            this.smoothScroll.update();
+            this.setPosition();
+        }
         
         // Render with appropriate method based on device
         if (isMobile) {
@@ -620,34 +617,38 @@ updateScrollNumber() {
 
     destroy() {
         this.isActive = false;
-
-        // Clear all meshes
-        this.imageStore.forEach(item => {
-            this.scene.remove(item.mesh);
-            item.material.dispose();
-            item.mesh.geometry.dispose();
-        });
-
+        
+        // Clear all meshes and materials
+        if (this.imageStore) {
+            this.imageStore.forEach(item => {
+                this.scene.remove(item.mesh);
+                item.material.dispose();
+                item.mesh.geometry.dispose();
+            });
+        }
+        
         // Clear arrays
         this.imageStore = [];
         this.materials = [];
-
-        // Dispose of renderer and remove from DOM
-        this.renderer.dispose();
-        this.renderer.domElement.remove();
-
-        // Clear composer and its passes
+        
+        // Dispose of renderer and remove canvas
+        if (this.renderer) {
+            this.renderer.dispose();
+            this.renderer.domElement.remove();
+        }
+        
+        // Clear composer and passes
         if (this.composer) {
             this.composer.passes.forEach(pass => pass.dispose());
             this.composer = null;
         }
-
-        // Cancel animation frame if it exists
+        
+        // Cancel animation frame
         if (this.rafID) {
             cancelAnimationFrame(this.rafID);
         }
-
-        // Clear scroll
+        
+        // Clear scroll instance
         if (this.smoothScroll) {
             this.smoothScroll.disable();
         }
@@ -686,8 +687,7 @@ updateScrollNumber() {
         }
     }
 
-
-
+    
 }
 
 // window.addEventListener('DOMContentLoaded', () => {

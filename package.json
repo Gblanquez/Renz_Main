@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@ashthornton/asscroll": "^2.0.11",
-    "@barba/core": "^2.9.7",
+    "@barba/core": "^2.10.3",
     "@studio-freight/lenis": "^1.0.33",
     "@unseenco/taxi": "^1.5.1",
     "barba.js": "^1.0.0",

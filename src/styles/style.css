@@ -132,6 +132,14 @@ canvas{
     pointer-events: none; 
 }
 
+
+#lottie-logo{
+    width: 3vw;
+    height: 3vw;
+    background-color: red;
+}
+
+
 #container{
     width: 100vw;
     height: 100vh;

@@ -5,6 +5,7 @@ import ScrollTrigger from "gsap/ScrollTrigger";
 import HomeSketch from './HomeSketch';
 import WorkSketch from './WorkSketch';
 import { initializeAnimations, OutAnimation, initializeInsideAnimations } from './animation';
+import { initializeTransitions } from './transition.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -17,6 +18,7 @@ export const setVw = () => {
 // Set the initial value of --vw
 document.addEventListener('DOMContentLoaded', () => {
     setVw();
+    initializeTransitions();
 });
 
 // Update --vw on window resize
@@ -32,9 +34,9 @@ export default class App {
     }
 }
 
-new App({
-    domElement: document.getElementById('container'),
-    homeSketch: new HomeSketch({
-        domElement: document.getElementById('container')
-    }),
-});
+// new App({
+//     domElement: document.getElementById('container'),
+//     homeSketch: new HomeSketch({
+//         domElement: document.getElementById('container')
+//     }),
+// });

@@ -1,38 +1,48 @@
 import ASScroll from '@ashthornton/asscroll';
 
 let instance = null;
+let eventListeners = [];
 
 export function getASScrollInstance() {
-    if (!instance) {
-        // Detect if we're on mobile
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    // Always clean up first
+    destroyASScrollInstance();
+    
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    instance = new ASScroll({
+        disableRaf: true,
+        touchScrollType: isMobile ? 'scrollTop' : 'transform',
+        useKeyboard: true,
+        ease: 0.1,
+        touchEase: isMobile ? 1 : 0.4,
+        wheelMultiplier: isMobile ? 0.7 : 1,
+    });
+
+    // Store event listeners for cleanup
+    const touchStartHandler = (e) => {
+        // Touch start logic
+    };
+    
+    const touchMoveHandler = (e) => {
+        // Touch move logic
+    };
+    
+    const touchEndHandler = () => {
+        // Touch end logic
+    };
+
+    if (isMobile) {
+        document.addEventListener('touchstart', touchStartHandler, { passive: false });
+        document.addEventListener('touchmove', touchMoveHandler, { passive: false });
+        document.addEventListener('touchend', touchEndHandler, { passive: true });
         
-        instance = new ASScroll({
-            disableRaf: true,
-            touchScrollType: isMobile ? 'scrollTop' : 'transform', // Use native scrolling on mobile
-            useKeyboard: true,
-            ease: 0.1,
-            touchEase: isMobile ? 1 : 0.4, // No easing on mobile for responsiveness
-            wheelMultiplier: isMobile ? 0.7 : 1, // Reduce wheel sensitivity on mobile
-        });
-
-        instance.enable({
-            horizontalScroll: !document.body.classList.contains('b-inside'),
-            smartphone: {
-                smooth: false, // Disable smooth scrolling on mobile for better performance
-                horizontalScroll: !document.body.classList.contains('b-inside')
-            },
-            tablet: {
-                smooth: false, // Disable smooth scrolling on tablets
-                horizontalScroll: !document.body.classList.contains('b-inside')
-            }
-        });
-
-        // Add vertical-to-horizontal scroll mapping for mobile on homepage
-        if (isMobile && !document.body.classList.contains('b-inside')) {
-            setupVerticalToHorizontalScroll(instance);
-        }
+        eventListeners.push(
+            { element: document, type: 'touchstart', handler: touchStartHandler },
+            { element: document, type: 'touchmove', handler: touchMoveHandler },
+            { element: document, type: 'touchend', handler: touchEndHandler }
+        );
     }
+
     return instance;
 }
 
@@ -88,6 +98,13 @@ function setupVerticalToHorizontalScroll(scrollInstance) {
 
 export function destroyASScrollInstance() {
     if (instance) {
+        // Remove all event listeners
+        eventListeners.forEach(({ element, type, handler }) => {
+            element.removeEventListener(type, handler);
+        });
+        eventListeners = [];
+        
+        // Disable and cleanup instance
         instance.disable();
         instance = null;
     }
