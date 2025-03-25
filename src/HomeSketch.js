@@ -60,9 +60,9 @@ export default class HomeSketch{
 
         this.smoothScroll = options.smoothScroll;
         if (this.smoothScroll) {
-            this.smoothScroll.on('update', () => {
-                this.updateScrollNumber();
-            });
+            // Store the update function reference so we can remove it later
+            this.scrollUpdateHandler = () => this.updateScrollNumber();
+            this.smoothScroll.on('update', this.scrollUpdateHandler);
         }
 
 
@@ -467,16 +467,23 @@ export default class HomeSketch{
 
 
 updateScrollNumber() {
+    // Only run this on home page
+    if (!document.querySelector('[data-barba-namespace="home"]')) return;
+    
     const nmElement = document.querySelector('.nm');
     if (!nmElement || !this.imageStore || !this.smoothScroll || this.imageStore.length === 0) return;
 
-    const lastMesh = this.imageStore[this.imageStore.length - 1];
-    const lastMeshRight = lastMesh.left + lastMesh.width;
-    const totalScrollableDistance = Math.max(this.maxScroll, lastMeshRight - window.innerWidth);
-    const scrollX = Math.min(this.smoothScroll?.currentPos || 0, totalScrollableDistance);
-    const percentage = Math.round((scrollX / totalScrollableDistance) * 100);
+    try {
+        const lastMesh = this.imageStore[this.imageStore.length - 1];
+        const lastMeshRight = lastMesh.left + lastMesh.width;
+        const totalScrollableDistance = Math.max(this.maxScroll, lastMeshRight - window.innerWidth);
+        const scrollX = Math.min(this.smoothScroll?.currentPos || 0, totalScrollableDistance);
+        const percentage = Math.round((scrollX / totalScrollableDistance) * 100);
 
-    nmElement.textContent = percentage;
+        nmElement.textContent = percentage.toString().padStart(3, '0');
+    } catch (error) {
+        console.warn('Error updating scroll number:', error);
+    }
 }
 
 
@@ -599,7 +606,7 @@ updateScrollNumber() {
         
         // Update scroll and positions
         if (this.smoothScroll) {
-            this.smoothScroll.update();
+            // Don't call update() from here, just use the position
             this.setPosition();
         }
         
@@ -618,40 +625,70 @@ updateScrollNumber() {
     destroy() {
         this.isActive = false;
         
+        // Stop the render loop first
+        if (this.rafID) {
+            cancelAnimationFrame(this.rafID);
+            this.rafID = null;
+        }
+
+        // Remove scroll update listener
+        if (this.smoothScroll) {
+            if (this.scrollUpdateHandler) {
+                this.smoothScroll.off('update', this.scrollUpdateHandler);
+            }
+            this.smoothScroll = null;
+        }
+
         // Clear all meshes and materials
         if (this.imageStore) {
             this.imageStore.forEach(item => {
-                this.scene.remove(item.mesh);
-                item.material.dispose();
-                item.mesh.geometry.dispose();
+                if (item.mesh) {
+                    this.scene.remove(item.mesh);
+                    if (item.mesh.geometry) item.mesh.geometry.dispose();
+                }
+                if (item.material) {
+                    if (item.material.uniforms) {
+                        Object.values(item.material.uniforms).forEach(uniform => {
+                            if (uniform.value && uniform.value.dispose) {
+                                uniform.value.dispose();
+                            }
+                        });
+                    }
+                    item.material.dispose();
+                }
             });
+            this.imageStore = null;
         }
-        
-        // Clear arrays
-        this.imageStore = [];
-        this.materials = [];
-        
-        // Dispose of renderer and remove canvas
+
+        // Clean up renderer
         if (this.renderer) {
             this.renderer.dispose();
-            this.renderer.domElement.remove();
+            if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+                this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+            }
         }
-        
-        // Clear composer and passes
+
+        // Clean up composer if it exists
         if (this.composer) {
-            this.composer.passes.forEach(pass => pass.dispose());
+            this.composer.passes.forEach(pass => {
+                if (pass.dispose) pass.dispose();
+            });
             this.composer = null;
         }
-        
-        // Cancel animation frame
-        if (this.rafID) {
-            cancelAnimationFrame(this.rafID);
+
+        // Clear scene
+        if (this.scene) {
+            while(this.scene.children.length > 0) { 
+                const object = this.scene.children[0];
+                this.scene.remove(object);
+            }
         }
-        
-        // Clear scroll instance
-        if (this.smoothScroll) {
-            this.smoothScroll.disable();
-        }
+
+        // Clear references
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        window.homeSketch = null;
     }
 
     setupContainer() {
