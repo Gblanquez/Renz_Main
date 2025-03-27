@@ -1465,7 +1465,7 @@ updateScrollNumber() {
     switchToCircleView() {
         if (!this.imageStore) return;
         
-        console.log("Creating perfectly oriented cylinder with optimal spacing");
+        console.log("Creating perfectly oriented cylinder with improved spacing");
         
         // Save original setPosition for later restoration
         if (!this._originalSetPosition) {
@@ -1497,8 +1497,7 @@ updateScrollNumber() {
         // Calculate optimal cylinder properties
         const numMeshes = this.imageStore.length;
         
-        // Use a smaller radius for better viewport fit
-        // Reduced from 420 to a more comfortable 350
+        // Keep the smaller radius but add better spacing
         const radius = 350;
         
         // IMPORTANT: Create the cylinder visual first to establish reference
@@ -1508,11 +1507,11 @@ updateScrollNumber() {
         const avgWidth = this.imageStore.reduce((sum, item) => sum + item.width, 0) / numMeshes;
         const avgHeight = this.imageStore.reduce((sum, item) => sum + item.height, 0) / numMeshes;
         
-        // CRITICAL: Keep the large spacing factor
-        // This ensures gaps between meshes
-        const spacingFactor = 1.0; // 100% spacing
+        // CRITICAL: Significantly increase the spacing factor to prevent overlap
+        // This ensures larger gaps between meshes - increased from 1.0 to 1.5
+        const spacingFactor = 1.5; // 150% spacing for smaller radius
         
-        // Calculate the angular spread with spacing included
+        // Calculate the angular spread with increased spacing
         const totalAngle = Math.PI * 2; // Complete circle
         const anglePerMesh = totalAngle / (numMeshes * (1 + spacingFactor));
         const spacedAnglePerMesh = anglePerMesh * (1 + spacingFactor);
@@ -1531,7 +1530,7 @@ updateScrollNumber() {
                 rotationZ: item.mesh.rotation.z
             };
             
-            // Calculate evenly spaced angle around circle with spacing
+            // Calculate evenly spaced angle around circle with increased spacing
             const angle = index * spacedAnglePerMesh;
             
             // Calculate position on cylinder using angle
@@ -1547,10 +1546,10 @@ updateScrollNumber() {
                 index,
                 isHighlighted: false,
                 originalPosition: new THREE.Vector3(posX, 0, posZ),
-                // Keep aspect ratio but make slightly smaller for better fit
+                // Make meshes even smaller to further enhance spacing
                 targetScale: {
-                    x: item.mesh.scale.x * 0.8, // Slightly smaller scale (reduced from 0.85)
-                    y: item.mesh.scale.y * 0.8, // Slightly smaller scale
+                    x: item.mesh.scale.x * 0.75, // Reduced further from 0.8 to 0.75
+                    y: item.mesh.scale.y * 0.75, // Reduced to match x-scale
                     z: 1
                 }
             };
@@ -1638,9 +1637,9 @@ updateScrollNumber() {
             }, 0.4);
         });
         
-        // Add container rotation animation - slightly adjust the initial rotation
+        // Add container rotation animation
         masterTl.to(this._circleContainer.rotation, {
-            y: 0.2, // Reduced from 0.4 to show a better initial view
+            y: 0.2,
             duration: 2.0,
             ease: "power2.inOut"
         }, 0.6);
