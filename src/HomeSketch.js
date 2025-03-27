@@ -262,197 +262,198 @@ export default class HomeSketch{
 
     // Create an improved returnToCarouselView with smoother animation and texture fixing
     returnToCarouselView() {
-        if (!this.imageStore) return;
-
-        console.log("Creating fluid interpolation back to carousel without texture flipping");
+        // Keep track of the current view we're leaving
+        const comingFromListView = this.isListViewActive;
+        const comingFromCircleView = this._inCircleView;
         
-        // Determine which view we're returning from
-        const fromCircleView = this._inCircleView;
+        // Set flags
+        this.isListViewActive = false;
+        this.isCircleViewActive = false;
         
-        // Reset view flags immediately
-        this._inCircleView = false;
-        this._inListView = false;
-        
-        // If coming from circle view, clean up events
-        if (fromCircleView) {
-            this.cleanupCylinderEvents();
+        // If coming from list view, handle that transition
+        if (comingFromListView) {
+            console.log("Animating from list to carousel with fast stagger transition");
             
-            // Hide visual helpers if any
-            if (this._circleHelper) {
-                gsap.to(this._circleHelper.material, {
-                    opacity: 0,
-                    duration: 0.3
-                });
-            }
-        }
-        
-        // Create master timeline
+            // Create a master timeline for coordinated animation
+            const masterTl = gsap.timeline({
+                onComplete: () => {
+                    console.log("Carousel transition complete");
+                    // Re-enable scrolling after animation completes
+                    this.restoreCarouselScroll();
+                }
+            });
+            
+            // Faster transition with clean stagger - match the timing of the list view animation
+            this.imageStore.forEach((item, i) => {
+                if (item._originalCarouselData) {
+                    // Make items visible as they move (like in the list view animation)
+                    masterTl.to(item.material.uniforms.hoverState, {
+                        value: 0.8, // Moderate visibility
+                        duration: 0.4,
+                        ease: "power1.in",
+                        delay: i * 0.02 // Faster stagger
+                    }, 0);
+                    
+                    // Direct animation to final position with quick stagger
+                    masterTl.to(item.mesh.position, {
+                        x: item._originalCarouselData.x,
+                        y: item._originalCarouselData.y,
+                        z: item._originalCarouselData.z,
+                        duration: 0.8, // Faster animation
+                        ease: "power2.out",
+                        delay: i * 0.04 // Same stagger timing as list view
+                    }, 0.1); // Start after visibility begin
+                    
+                    // Restore original rotation
+                    masterTl.to(item.mesh.rotation, {
+                        z: item._originalCarouselData.rotation || 0,
+                        duration: 0.7, // Slightly faster than position
+                        ease: "power2.out"
+                    }, 0.1 + i * 0.04); // Match position timing
+                    
+                    // Fade back to normal visibility state
+                    masterTl.to(item.material.uniforms.hoverState, {
+                        value: 0, // Back to normal
+                        duration: 0.5,
+                        ease: "power1.out"
+                    }, 0.5 + i * 0.03); // Slightly faster stagger on the way out
+                }
+            });
+            
+            // Keep the timeline moving without calling restoreCarouselScroll yet
+            return;
+        } 
+        // If coming from circle view, handle that transition
+        else if (comingFromCircleView) {
+            console.log("Animating from circle to carousel view");
+            
+            // Create a master timeline for coordinated animation
         const masterTl = gsap.timeline({
             onComplete: () => {
-                // Clean up after animation completes
-                if (this._circleHelper) {
-                    this._circleContainer?.remove(this._circleHelper);
-                    this._circleHelper.geometry?.dispose();
-                    this._circleHelper.material?.dispose();
-                    this._circleHelper = null;
-                }
-                
+                    console.log("Carousel transition complete");
+                    
+                    // Move meshes back to main scene from circle container
                 if (this._circleContainer) {
-                    // Move meshes back to scene
                     while (this._circleContainer.children.length > 0) {
                         const child = this._circleContainer.children[0];
-                        if (child.type === "Mesh" && this.imageStore.some(item => item.mesh === child)) {
+                            // Skip the cylinder wireframe and helper objects
+                            if (child !== this._dragCylinder && 
+                                child !== this._ringHelper && 
+                                child !== this._xAxisHelper && 
+                                child !== this._zAxisHelper) {
+                                // Get world position/rotation before removing
+                                const worldPos = new THREE.Vector3();
+                                const worldRot = new THREE.Euler();
+                                child.getWorldPosition(worldPos);
+                                child.getWorldQuaternion(new THREE.Quaternion().setFromEuler(worldRot));
+                                
+                                // Remove from container and add to scene
                             this._circleContainer.remove(child);
                             this.scene.add(child);
                         } else {
+                                // Just remove helpers and cylinder
                             this._circleContainer.remove(child);
-                            if (child.geometry) child.geometry.dispose();
-                            if (child.material) child.material.dispose();
+                            }
                         }
                     }
                     
-                    this.scene.remove(this._circleContainer);
-                    this._circleContainer = null;
-                }
-                
-                // Clean up cylinder data
-                this.imageStore.forEach(item => {
-                    delete item._cylinderData;
-                });
-                
-                // Restore original hover methods
-                if (this._originalSetCylinderHover) {
-                    this.setCylinderHover = this._originalSetCylinderHover;
-                    this._originalSetCylinderHover = null;
-                }
-                
-                if (this._originalResetCylinderHover) {
-                    this.resetCylinderHover = this._originalResetCylinderHover;
-                    this._originalResetCylinderHover = null;
-                }
-                
-                // Finally restore scroll
+                    // Re-enable scrolling after animation completes
                 this.restoreCarouselScroll();
             }
         });
         
-        // If coming from circle view, apply mirror-like reverse animation
-        if (fromCircleView) {
-            // First fade out the draggable cylinder 
+            // Return meshes to their original carousel positions
+            this.imageStore.forEach((item, i) => {
+                // Only process if we have original position data
+                if (item._carouselPosition) {
+                    // Reset material side to front only
+                    item.material.side = THREE.FrontSide;
+                    
+                    // Reset any circle-specific shader uniforms
+                    if (item.material.uniforms.uTransitionProgress) {
+                        item.material.uniforms.uTransitionProgress.value = 0;
+                    }
+                    
+                    // Animate position with stagger
+                    masterTl.to(item.mesh.position, {
+                        x: item._carouselPosition.x,
+                        y: item._carouselPosition.y,
+                        z: item._carouselPosition.z,
+                duration: 1.2,
+                        ease: "power2.inOut",
+                        delay: i * 0.05
+            }, 0);
+            
+                    // Animate rotation with stagger 
+                    // Need to reset all rotations, especially Y which was changed for cylinder
+                    masterTl.to(item.mesh.rotation, {
+                        x: item._carouselPosition.rotationX || 0,
+                        y: item._carouselPosition.rotationY || 0,
+                        z: item._carouselPosition.rotationZ || 0,
+                        duration: 1.0,
+                    ease: "power2.inOut",
+                        delay: i * 0.05
+                    }, 0.1);
+                    
+                    // Animate scale with stagger
+                    masterTl.to(item.mesh.scale, {
+                        x: item._carouselPosition.scaleX,
+                        y: item._carouselPosition.scaleY,
+                        z: 1, 
+                    duration: 1.0,
+                    ease: "power1.inOut",
+                        delay: i * 0.05
+                    }, 0.2);
+                    
+                    // Fade back to normal visibility
+                masterTl.to(item.material.uniforms.hoverState, {
+                        value: 0, // Reset to normal carousel state
+                        duration: 0.7,
+                    ease: "power2.inOut",
+                        delay: i * 0.05
+                    }, 0.3);
+                }
+            });
+            
+            // Clean up circle view elements
             if (this._dragCylinder) {
                 masterTl.to(this._dragCylinder.material, {
                     opacity: 0,
                     duration: 0.5,
-                    ease: "power1.out"
+                    ease: "power1.in",
+                    onComplete: () => {
+                        // Clean up the cylinder and its container
+                        if (this._circleContainer) {
+                            if (this._dragCylinder) {
+                                this._circleContainer.remove(this._dragCylinder);
+                                this._dragCylinder.geometry.dispose();
+                                this._dragCylinder.material.dispose();
+                                this._dragCylinder = null;
+                            }
+                        }
+                    }
                 }, 0);
             }
             
-            // Begin rotating container back to flat position
+            // Rotate the circle container back to initial position
+            if (this._circleContainer) {
             masterTl.to(this._circleContainer.rotation, {
-                x: 0, 
-                y: 0.2, // Partial rotation before main animation
-                z: 0,
-                duration: 1.2,
-                ease: "power2.inOut"
-            }, 0);
-            
-            // Create reverse transition for each mesh
-            const numMeshes = this.imageStore.length;
-            
-            this.imageStore.forEach((item, index) => {
-                if (!item._cylinderData) return;
-                
-                // Calculate normalized index and delay
-                const normalizedIndex = index / (numMeshes - 1);
-                const delay = 0.1 + 0.2 * normalizedIndex;
-                
-                // Calculate original carousel position
-                const originalX = -this.smoothScroll.currentPos + item.originalLeft - this.width / 2 + item.originalWidth / 2;
-                const originalY = -item.originalTop + this.height / 2 - item.originalHeight / 2;
-                
-                // Current position in circle
-                const startPos = item.mesh.position.clone();
-                
-                // Begin shader transition first
-                masterTl.to(item.material.uniforms.uTransitionProgress, {
-                    value: 0.8,  // Partial retreat to maintain some effect during movement
-                    duration: 0.8,
-                    ease: "power1.in",
-                    delay: delay
-                }, 0.2);
-                
-                // First move to intermediate position (arc start)
-                masterTl.to(item.mesh.position, {
-                    x: startPos.x * 0.5 + originalX * 0.5,
-                    y: startPos.y * 0.5 + 40 - Math.sin(index) * 20, // Arc up
-                    z: startPos.z * 0.5 - 20,
-                    duration: 0.9,
-                    ease: "power2.inOut",
-                    delay: delay
-                }, 0.4);
-                
-                // Then move to final carousel position (arc complete)
-                masterTl.to(item.mesh.position, {
-                    x: originalX,
-                    y: originalY,
-                    z: 0,
+                    y: 0,
                     duration: 1.0,
                     ease: "power2.inOut"
-                }, 0.4 + delay + 0.8);
-                
-                // Complete shader transition at the end
-                masterTl.to(item.material.uniforms.uTransitionProgress, {
-                    value: 0.4, // Mid-transition
-                    duration: 0.9,
-                    ease: "power1.inOut",
-                    delay: delay
-                }, 0.4);
-                
-                // Final shader state
-                masterTl.to(item.material.uniforms.uTransitionProgress, {
-                    value: 0,
-                    duration: 1.0,
-                    ease: "power3.out"
-                }, 0.4 + delay + 0.8);
-                
-                // Restore scale with slight bounce
-                masterTl.to(item.mesh.scale, {
-                    x: item.originalWidth,
-                    y: item.originalHeight,
-                    z: 1,
-                    duration: 1.2,
-                    ease: "back.out(1.2)",
-                    delay: delay + 0.3
-                }, 0.6);
-                
-                // Restore visibility
-                masterTl.to(item.material.uniforms.hoverState, {
-                    value: 0,
-                    duration: 0.6,
-                    ease: "power2.inOut",
-                    delay: delay + 0.6
-                }, 0.8);
-                
-                // Near the end of the animation, ensure correct rotation
-                masterTl.call(() => {
-                    // Reset rotation
-                    item.mesh.rotation.set(0, 0, 0);
-                    
-                    // We're keeping textures in their original orientation
-                }, null, delay + 1.4);
-            });
+                }, 0);
+            }
             
-            // Final container rotation to ensure flat
-            masterTl.to(this._circleContainer.rotation, {
-                x: 0, 
-                y: 0, 
-                z: 0,
-                duration: 0.6,
-                ease: "power1.inOut"
-            }, 1.8);
+            // Keep the timeline moving without calling restoreCarouselScroll yet
+            return;
+        } 
+        else {
+            // Default animation if not coming from list or circle view
+            console.log("No specific transition needed");
+            
+            // Re-enable scrolling and other carousel-specific behavior
+            this.restoreCarouselScroll();
         }
-        
-        return masterTl;
     }
 
     // Completely rewritten restoreCarouselScroll to work reliably
@@ -555,9 +556,26 @@ export default class HomeSketch{
         }
     }
 
-    // Update switchToListView to better handle the scroll state
+    // Update switchToListView to position items 10% from the bottom of the screen
     switchToListView() {
-        if (!this.imageStore) return;
+        // Set flags
+        this.isListViewActive = true;
+        this.isCircleViewActive = false;
+        
+        // Before changing positions, store original carousel data for each item
+        this.imageStore.forEach(item => {
+            item._originalCarouselData = {
+                x: item.mesh.position.x,
+                y: item.mesh.position.y,
+                z: item.mesh.position.z,
+                rotation: item.mesh.rotation.z,
+                scale: {
+                    x: item.mesh.scale.x,
+                    y: item.mesh.scale.y,
+                    z: item.mesh.scale.z
+                }
+            };
+        });
     
         console.log("Switching to list view - disabling scroll");
         
@@ -588,19 +606,26 @@ export default class HomeSketch{
             }
         }
         
-        // Center coordinates
+        // Calculate center X and position Y that's 10% from bottom of screen
         const centerX = 0;
-        const centerY = 0;
+        // Calculate Y position: -40% of height from center (since center is 0,0)
+        // This places items 10% from the bottom of the screen (changed from 5%)
+        const bottomY = -(this.height / 2) * 0.8; // 10% from bottom = 80% of half-height
+        
+        // Increase the z-spacing between meshes to prevent clashing
+        const zSpacing = 25; // Increased from 10 to 25 for better separation
+        
+        console.log(`Positioning list view items at X: ${centerX}, Y: ${bottomY} (10% from bottom) with z-spacing: ${zSpacing}`);
         
         // Create animation timeline
         const tl = gsap.timeline({
             onComplete: () => {
-                console.log("Stack animation complete - meshes centered");
+                console.log("Stack animation complete - meshes positioned near bottom");
                 this.setupEnhancedHoverEvents();
             }
         });
         
-        // Move all meshes to center with staggered timing
+        // Move all meshes to the new position with staggered timing
         this.imageStore.forEach((item, index) => {
             // Store original position for later reference
             item._originalPosition = {
@@ -609,11 +634,11 @@ export default class HomeSketch{
                 z: item.mesh.position.z
             };
             
-            // Move to center
+            // Move to bottom-center position with increased z-separation
             tl.to(item.mesh.position, {
                 x: centerX,
-                y: centerY,
-                z: -index * 10, // Clear z separation for stacking
+                y: bottomY,
+                z: -index * zSpacing, // Increased z-spacing between items
                 duration: 0.8,
                 ease: "power2.out",
                 delay: index * 0.04
@@ -630,7 +655,7 @@ export default class HomeSketch{
         this.currentVisibleMeshIndex = 0;
     }
 
-    // Enhanced hover events with click functionality for the list items
+    // Enhanced hover events with fluid, wave-like folder effect for list items
     setupEnhancedHoverEvents() {
         const listItems = document.querySelectorAll('.item-list');
         
@@ -643,9 +668,143 @@ export default class HomeSketch{
         // Get fresh references
         const freshListItems = document.querySelectorAll('.item-list');
         
-        console.log(`Setting up hover and click events for ${freshListItems.length} list items`);
+        console.log(`Setting up hover events for ${freshListItems.length} list items with fluid card effect`);
         
-        // Add nice visual hover effects to each list item
+        // Define consistent spacing and animation parameters
+        const zSpacing = 25; // Match the value used in switchToListView
+        const popUpAmount = 30; // Maximum amount to move up on y-axis when hovered
+        const baseY = -(this.height / 2) * 0.8; // 10% from bottom
+        
+        // Smoother, faster animations for rapid hovering
+        const riseTime = 0.28;    // Even faster rise time for more responsive feel
+        const fallTime = 0.22;    // Even faster fall time
+        const hoverEase = "back.out(1.7)";  // More pronounced bounce on rise
+        const fallEase = "power2.out";      // Smooth fall
+        
+        // Store animations for each mesh to manage interruptions
+        const animations = new Map();
+        
+        // Keep track of the current hovered index globally
+        let currentHoveredIndex = null;
+        
+        // Pre-position all elements to ensure consistent starting point
+        this.imageStore.forEach((item, i) => {
+            gsap.set(item.mesh.position, {
+                y: baseY,
+                z: -i * zSpacing
+            });
+            
+            // Store this position as the reference
+            item._stackPosition = {
+                y: baseY,
+                z: -i * zSpacing
+            };
+        });
+        
+        // Function to handle smooth transitions between items
+        const smoothlyTransition = (fromIndex, toIndex) => {
+            if (!this.imageStore) return;
+            
+            // Only process indices that exist
+            if (fromIndex !== null && fromIndex >= 0 && fromIndex < this.imageStore.length) {
+                const prevItem = this.imageStore[fromIndex];
+                
+                // Kill any existing animation on this item
+                if (animations.has(fromIndex)) {
+                    animations.get(fromIndex).kill();
+                }
+                
+                // Create new fall animation
+                const fallAnim = gsap.to(prevItem.mesh.position, {
+                    y: baseY, // Return exactly to base position
+                    duration: fallTime,
+                    ease: fallEase,
+                    onComplete: () => animations.delete(fromIndex)
+                });
+                
+                // Dim the item
+                gsap.to(prevItem.material.uniforms.hoverState, {
+                    value: fromIndex === 0 ? 0.8 : 0.2, // First item stays more visible
+                    duration: fallTime * 0.8,
+                    ease: "power1.out"
+                });
+                
+                // Store the animation
+                animations.set(fromIndex, fallAnim);
+            }
+            
+            // Process to new index if it exists
+            if (toIndex !== null && toIndex >= 0 && toIndex < this.imageStore.length) {
+                const newItem = this.imageStore[toIndex];
+                
+                // Kill any existing animation on this item
+                if (animations.has(toIndex)) {
+                    animations.get(toIndex).kill();
+                }
+                
+                // Create rise animation
+                const riseAnim = gsap.to(newItem.mesh.position, {
+                    y: baseY + popUpAmount,
+                    duration: riseTime,
+                    ease: hoverEase,
+                    onComplete: () => animations.delete(toIndex)
+                });
+                
+                // Full visibility with slight overshoot
+                gsap.to(newItem.material.uniforms.hoverState, {
+                    value: 1.1, // Slightly higher than 1 for a brief "pop"
+                    duration: riseTime * 0.7,
+                    ease: "power2.inOut",
+                    onComplete: () => {
+                        // Settle back to exactly 1
+                        gsap.to(newItem.material.uniforms.hoverState, {
+                            value: 1,
+                            duration: 0.2,
+                            ease: "power1.out"
+                        });
+                    }
+                });
+                
+                // Store the animation
+                animations.set(toIndex, riseAnim);
+            }
+        };
+        
+        // Ensure all items return to base position - critical for fixing hover state issues
+        const resetAllItems = () => {
+            if (!this.imageStore || !this._inListView) return;
+            
+            // Reset whatever was previously hovered
+            if (currentHoveredIndex !== null) {
+                smoothlyTransition(currentHoveredIndex, null);
+                currentHoveredIndex = null;
+            }
+            
+            // Force-reset all items to be extra safe
+            this.imageStore.forEach((item, i) => {
+                // Kill any existing animations
+                if (animations.has(i)) {
+                    animations.get(i).kill();
+                    animations.delete(i);
+                }
+                
+                // Return to base position
+                gsap.to(item.mesh.position, {
+                    y: baseY,
+                    z: -i * zSpacing,
+                    duration: 0.3,
+                    ease: "power2.out"
+                });
+                
+                // Reset visibility - first item more visible
+                gsap.to(item.material.uniforms.hoverState, {
+                    value: i === 0 ? 0.8 : 0.2,
+                    duration: 0.3
+                });
+            });
+        };
+        
+        // Add smooth hover effects to each list item
         freshListItems.forEach((item, index) => {
             // Make sure we're working with the correct mesh index
             const meshIndex = parseInt(item.dataset.meshIndex || index);
@@ -669,49 +828,41 @@ export default class HomeSketch{
             item.style.position = 'relative';
             item.appendChild(indicator);
             
-            // Mouse enter - bring mesh to front
+            // Mouse enter - smoothly transition between items
             item.addEventListener('mouseenter', () => {
                 if (!this.imageStore || !this._inListView) return;
                 
-                const prevIndex = this.currentVisibleMeshIndex;
-                
-                // Hide previous mesh
-                if (prevIndex !== meshIndex && this.imageStore[prevIndex]) {
-                    // Send back to its place in stack
-                    gsap.to(this.imageStore[prevIndex].mesh.position, {
-                        z: -prevIndex * 10,
-                        duration: 0.4,
-                        ease: "power2.out"
-                    });
-                    
-                    // Dim it
-                    gsap.to(this.imageStore[prevIndex].material.uniforms.hoverState, {
-                        value: 0.2,
-                        duration: 0.3
-                    });
-                }
-                
-                // Show current mesh
-                if (this.imageStore[meshIndex]) {
-                    // Bring to front with slight bounce effect
-                    gsap.to(this.imageStore[meshIndex].mesh.position, {
-                        z: 20, // Well in front
-                        duration: 0.5,
-                        ease: "back.out(1.7)"
-                    });
-                    
-                    // Full visibility
-                    gsap.to(this.imageStore[meshIndex].material.uniforms.hoverState, {
-                        value: 1,
-                        duration: 0.4
-                    });
-                    
-                    // Update current visible
-                    this.currentVisibleMeshIndex = meshIndex;
+                // Only perform transition if this is different from current
+                if (currentHoveredIndex !== meshIndex) {
+                    smoothlyTransition(currentHoveredIndex, meshIndex);
+                    currentHoveredIndex = meshIndex;
                 }
             });
             
-            // Add click event - trigger the mesh's click animation
+            // Mouse leave - fix for items staying in hover state
+            item.addEventListener('mouseleave', (e) => {
+                if (!this.imageStore || !this._inListView) return;
+                
+                // Check if we're moving to another list item or leaving the list entirely
+                // Get the element being entered
+                const relatedTarget = e.relatedTarget;
+                
+                // If not moving to another list item, reset this one
+                if (!relatedTarget || !relatedTarget.closest('.item-list')) {
+                    // Only reset if we're not entering another list item
+                    const isEnteringAnotherItem = Array.from(freshListItems).some(listItem => 
+                        listItem !== item && listItem.contains(relatedTarget)
+                    );
+                    
+                    if (!isEnteringAnotherItem) {
+                        // We're not entering another item, so start transitioning this one down
+                        smoothlyTransition(meshIndex, null);
+                        currentHoveredIndex = null;
+                    }
+                }
+            });
+            
+            // Add click event - with enhanced animation
             item.addEventListener('click', () => {
                 if (!this.imageStore || !this._inListView) return;
                 
@@ -752,9 +903,9 @@ export default class HomeSketch{
                     repeat: 1
         }, 0);
                 
-                // Add some movement to emphasize the click
+                // Add a "pull-out" motion along y-axis to emphasize the click
                 tl.to(meshItem.mesh.position, {
-                    z: 30, // Push forward slightly
+                    y: baseY + popUpAmount + 15, // Extra pull out
                     duration: 0.3,
                     ease: 'power2.out',
                     yoyo: true,
@@ -771,31 +922,62 @@ export default class HomeSketch{
             });
         });
         
-        // Optional - add handler for the list container for when mouse leaves the entire list
+        // Add handler for the list container for when mouse leaves the entire list
         const listContainer = document.querySelector('.content-list');
         if (listContainer) {
             listContainer.addEventListener('mouseleave', () => {
                 if (!this.imageStore || !this._inListView) return;
                 
-                // Reset to show first mesh when leaving the list container
-                this.imageStore.forEach((item, i) => {
-                    gsap.to(item.mesh.position, {
-                        z: -i * 10, // Return to original stack order
-                        duration: 0.4,
-                        ease: "power2.out"
+                // Reset all meshes smoothly when mouse leaves the container
+                resetAllItems();
+            });
+            
+            // Add additional mouse move handler on list container to catch gaps between items
+            // This acts as a safety net for when mouse moves between items
+            let mouseMoveTicking = false;
+            let lastMouseEvent = null;
+            
+            listContainer.addEventListener('mousemove', (e) => {
+                lastMouseEvent = e;
+                
+                if (!mouseMoveTicking) {
+                    window.requestAnimationFrame(() => {
+                        // Check if we're over a list item
+                        const hoveredElement = document.elementFromPoint(
+                            lastMouseEvent.clientX, 
+                            lastMouseEvent.clientY
+                        );
+                        
+                        // If not hovering an item or hovering the container directly, reset
+                        if (hoveredElement === listContainer || 
+                            (hoveredElement && !hoveredElement.closest('.item-list'))) {
+                            // We're in a gap between items, smoothly reset current item
+                            if (currentHoveredIndex !== null) {
+                                smoothlyTransition(currentHoveredIndex, null);
+                                currentHoveredIndex = null;
+                            }
+                        }
+                        
+                        mouseMoveTicking = false;
                     });
                     
-                    // Reset visibility
-                    gsap.to(item.material.uniforms.hoverState, {
-                        value: i === 0 ? 0.8 : 0.2,
-                        duration: 0.3
-                    });
-                });
-                
-                // Reset to first mesh
-                this.currentVisibleMeshIndex = 0;
+                    mouseMoveTicking = true;
+                }
             });
         }
+        
+        // Initially highlight the first item
+        if (this.imageStore && this.imageStore.length > 0) {
+            gsap.to(this.imageStore[0].material.uniforms.hoverState, {
+                value: 0.8,
+                duration: 0.3
+            });
+            this.currentVisibleMeshIndex = 0;
+        }
+        
+        // Extra safety: reset on window blur/focus changes
+        window.addEventListener('blur', resetAllItems);
+        window.addEventListener('focus', resetAllItems);
     }
 
     addObjects() {
@@ -1244,41 +1426,46 @@ updateScrollNumber() {
         }
     }
 
-    // Modify the fixMeshOrientation method to be simpler and more direct
+    // Improved fixMeshOrientation method to create a perfect cylinder surface effect
     fixMeshOrientation() {
         if (!this.imageStore || !this._inCircleView) return;
         
-        console.log("Fixing mesh orientation without texture flipping");
+        console.log("Fixing mesh orientations for perfect inward-facing cylinder");
         
-        // Center position for reference
-        const centerPosition = new THREE.Vector3(0, 0, 0);
-        
+        // Get all meshes to properly face the center
         this.imageStore.forEach((item) => {
             if (!item._cylinderData) return;
             
-            // Just apply a consistent orientation that looks good
-            // facing outward from center
-            const angle = item._cylinderData.angle;
+            // Get the mesh's position relative to the center
+            const meshPosition = item.mesh.position;
             
-            // Calculate the orientation directly without lookAt
-            // This gives us more control over final orientation
-            item.mesh.position.copy(item._cylinderData.originalPosition);
+            // Calculate angle from center to mesh position in the XZ plane
+            const angle = Math.atan2(meshPosition.z, meshPosition.x);
             
-            // Set rotation directly to face outward
+            // Reset rotation completely to avoid compounding effects
+            item.mesh.rotation.set(0, 0, 0);
+            
+            // Apply precise rotation to face directly toward center
+            // This is the key change - exactly PI (180 degrees) from the position angle
             item.mesh.rotation.y = angle + Math.PI;
             
-            // Store the rotation for reference
-            item._cylinderData.originalRotation = item.mesh.rotation.clone();
+            // Store for reference
+            if (!item._cylinderData.originalRotation) {
+                item._cylinderData.originalRotation = item.mesh.rotation.clone();
+            }
         });
         
-        console.log("Mesh orientation complete");
+        // Force an immediate render to see changes
+        if (this.renderer) {
+            this.renderer.render(this.scene, this.camera);
+        }
     }
 
-    // Completely revise the switchToCircleView method to avoid the flickering
+    // Update switchToCircleView to create a more perfect cylinder layout
     switchToCircleView() {
         if (!this.imageStore) return;
         
-        console.log("Creating immediate cylinder view transition");
+        console.log("Creating cylindrical view with consistent radius");
         
         // Save original setPosition for later restoration
         if (!this._originalSetPosition) {
@@ -1307,7 +1494,7 @@ updateScrollNumber() {
             this.scene.add(this._circleContainer);
         }
         
-        // Setup parameters for the final circle arrangement
+        // Calculate optimal cylinder properties
         const numMeshes = this.imageStore.length;
         
         // Calculate base scale for consistent sizing
@@ -1317,20 +1504,21 @@ updateScrollNumber() {
                             this.imageStore.reduce((max, item) => Math.max(max, item.originalHeight), 0)
                         );
         
-        // Calculate circle parameters
+        // Calculate circle parameters with even spacing
         const avgScaledWidth = this.imageStore.reduce((sum, item) => 
             sum + item.originalWidth * baseScale, 0) / numMeshes;
         
-        const spacingFactor = 0.05;
-        const spacing = avgScaledWidth * spacingFactor;
+        const spacing = avgScaledWidth * 0.01; // Minimal spacing for continuous surface
         
-        // Calculate circle radius from circumference
+        // Calculate circle radius based on circumference and number of meshes
         const totalWidth = (avgScaledWidth + spacing) * numMeshes;
         const radius = totalWidth / (2 * Math.PI);
         
-        // STEP 1: Pre-calculate all final positions and orientations
+        console.log(`Creating cylinder with radius: ${radius}, meshes: ${numMeshes}`);
+        
+        // Pre-calculate all final positions and orientations
         this.imageStore.forEach((item, index) => {
-            // Store current carousel position for transition
+            // Store current carousel position
             item._carouselPosition = {
                 x: item.mesh.position.x,
                 y: item.mesh.position.y,
@@ -1342,183 +1530,142 @@ updateScrollNumber() {
                 rotationZ: item.mesh.rotation.z
             };
             
-            // Calculate angle for this mesh in the final circle
+            // Calculate evenly spaced angle around circle
             const angle = -Math.PI/2 + (Math.PI * 2 / numMeshes) * index;
             
-            // Calculate final position on the circle
+            // Calculate final position on the circle using this angle
             const posX = Math.cos(angle) * radius;
             const posY = 0;
             const posZ = Math.sin(angle) * radius;
             
-            // Calculate target scale
+            // Calculate target scale (consistent for all meshes)
             const scaledWidth = item.originalWidth * baseScale;
             const scaledHeight = item.originalHeight * baseScale;
             
-            // Initialize or update shader uniforms
+            // Set up shader uniforms
             if (!item.material.uniforms.uTransitionProgress) {
                 item.material.uniforms.uTransitionProgress = { value: 0 };
                 item.material.uniforms.uCircleRadius = { value: radius };
                 item.material.uniforms.uCircleCenter = { value: new THREE.Vector2(0, 0) };
                 item.material.uniforms.uCircleAngle = { value: angle };
             } else {
-                // Update existing uniforms
                 item.material.uniforms.uCircleRadius.value = radius;
                 item.material.uniforms.uCircleCenter.value = new THREE.Vector2(0, 0);
                 item.material.uniforms.uCircleAngle.value = angle;
                 item.material.uniforms.uTransitionProgress.value = 0;
             }
             
-            // Material needs to be double-sided
+            // Material needs to be double-sided for cylinder view
             item.material.side = THREE.DoubleSide;
             
-            // Store target data for later use
+            // Store data for cylinder view
             item._cylinderData = {
                 angle,
                 originalPosition: new THREE.Vector3(posX, posY, posZ),
-                direction: new THREE.Vector3(-posX, 0, -posZ).normalize(),
                 index,
                 targetScale: {
                     x: scaledWidth,
                     y: scaledHeight,
                     z: 1
-                },
-                // Store target rotation - facing outward is key to avoid flipped appearance
-                targetRotation: new THREE.Euler(0, angle + Math.PI, 0)
+                }
             };
             
-            // Move mesh to circle container for proper transformation
+            // Move mesh to circle container
             if (this.scene.children.includes(item.mesh)) {
                 this.scene.remove(item.mesh);
                 this._circleContainer.add(item.mesh);
             }
         });
         
-        // STEP 2: Create the draggable cylinder RIGHT AWAY
-        // This ensures it's there from the first visible moment
+        // Create the draggable cylinder visual
         if (typeof this.createDraggableCylinder === 'function') {
             this.createDraggableCylinder(radius);
-            
-            // Start with cylinder visible but slightly transparent
-            if (this._dragCylinder) {
-                this._dragCylinder.material.opacity = 0.15;
-            }
         }
         
-        // STEP 3: Set up the animation timeline
+        // Set up animation timeline
         const masterTl = gsap.timeline({
             onComplete: () => {
-                console.log("Circle view transition complete");
+                console.log("Cylinder view complete");
                 
-                // Set up interactions once animation completes
+                // Important: Call fixMeshOrientation again after animation completes
+                // This ensures all meshes are perfectly oriented
+                this.fixMeshOrientation();
+                
+                // Set up interactions
                 if (typeof this.setupCylinderInteractions === 'function') {
                     this.setupCylinderInteractions();
-                }
-                
-                // Make cylinder fully visible at end of animation
-                if (this._dragCylinder) {
-                    gsap.to(this._dragCylinder.material, {
-                        opacity: 0.3, 
-                        duration: 0.5,
-                        ease: "power2.inOut"
-                    });
                 }
             }
         });
         
-        // Create fluid animation for each mesh
+        // Animate each mesh into position
         this.imageStore.forEach((item, index) => {
             const normalizedIndex = index / (numMeshes - 1);
             const delay = 0.05 * normalizedIndex;
             
-            // Arc trajectory with staggered timing
-            // First move up and slightly in path
-            masterTl.to(item.mesh.position, {
-                x: item._carouselPosition.x * 0.5 + item._cylinderData.originalPosition.x * 0.5,
-                y: item._carouselPosition.y * 0.5 + 40, // Arc upward 
-                z: item._carouselPosition.z * 0.5 + item._cylinderData.originalPosition.z * 0.5,
-                duration: 1.2,
-                ease: "power2.inOut",
-                delay: delay
-            }, 0);
-            
-            // Apply rotation immediately to avoid "flipped" appearance
-            masterTl.to(item.mesh.rotation, {
-                x: 0,
-                y: item._cylinderData.targetRotation.y,
-                z: 0,
-                duration: 0.8,
-                ease: "power1.inOut",
-                delay: delay
-            }, 0);
-            
-            // Reach final position
+            // Position animation with nice arc
             masterTl.to(item.mesh.position, {
                 x: item._cylinderData.originalPosition.x,
                 y: item._cylinderData.originalPosition.y,
                 z: item._cylinderData.originalPosition.z,
-                duration: 1.0,
-                ease: "back.out(1.2)", // Slight overshoot for dynamic feel
+                duration: 1.2,
+                ease: "power2.out",
                 delay: delay
-            }, 0.9);
+            }, 0);
             
-            // Scale to final size
+            // Apply consistent rotation - ALL meshes face inward from center
+            masterTl.to(item.mesh.rotation, {
+                x: 0,
+                // Critical - use exact same angle calculation with Math.PI to face inward
+                y: Math.atan2(item._cylinderData.originalPosition.z, item._cylinderData.originalPosition.x) + Math.PI,
+                z: 0,
+                duration: 0.8,
+                ease: "power1.out",
+                delay: delay
+            }, 0);
+            
+            // Scale animation
             masterTl.to(item.mesh.scale, {
                 x: item._cylinderData.targetScale.x,
                 y: item._cylinderData.targetScale.y,
                 z: 1,
-                duration: 1.2,
-                ease: "power2.out",
+                duration: 1.0,
+                ease: "back.out(1.2)",
                 delay: delay
             }, 0.6);
             
             // Shader transition
             masterTl.to(item.material.uniforms.uTransitionProgress, {
                 value: 1.0,
-                duration: 1.4,
+                duration: 1.0,
                 ease: "power2.inOut",
                 delay: delay
             }, 0.4);
             
-            // Set appropriate visibility
-            const visibilityFactor = 0.5 + (Math.cos(item._cylinderData.angle) + 1) * 0.25;
+            // Set visibility based on position
             masterTl.to(item.material.uniforms.hoverState, {
-                value: visibilityFactor,
-                duration: 1.0,
+                value: 0.8, // Default visibility
+                duration: 0.8,
                 ease: "power2.inOut",
                 delay: delay
             }, 0.8);
         });
         
-        // Animate container rotation for that "swing" effect
-        masterTl.to(this._circleContainer.rotation, {
-            y: 0.8, 
-            duration: 2.0,
-            ease: "power2.inOut"
-        }, 0.4);
-        
+        // Add some nice container rotation animation
         masterTl.to(this._circleContainer.rotation, {
             y: 0.4, 
-            duration: 1.5,
-            ease: "power1.inOut"
-        }, 2.4);
-        
-        // Fade in cylinder with animation
-        if (this._dragCylinder) {
-            masterTl.to(this._dragCylinder.material, {
-                opacity: 0.25,
-                duration: 1.2,
-                ease: "power2.inOut"
-            }, 0.8);
-        }
+            duration: 2.0,
+            ease: "power2.inOut"
+        }, 0.6);
         
         return masterTl;
     }
 
-    // Make the drag cylinder more accurately aligned with the images
+    // Also update createDraggableCylinder to match the exact radius of the mesh arrangement
     createDraggableCylinder(radius) {
-        console.log("Creating larger, more prominent draggable cylinder with radius:", radius);
+        console.log("Creating perfectly aligned draggable cylinder with radius:", radius);
         
-        // Clean up existing cylinder if any
+        // Clean up existing cylinder and helpers
         if (this._dragCylinder) {
             this._circleContainer.remove(this._dragCylinder);
             if (this._dragCylinder.geometry) this._dragCylinder.geometry.dispose();
@@ -1548,15 +1695,15 @@ updateScrollNumber() {
             this._zAxisHelper = null;
         }
         
-        // Create a much larger cylinder that surrounds the images
-        // Increase size by 20% for easier interaction
-        const cylinderRadius = radius * 1.2;
-        // Make it much taller to be more visible and grippable
+        // Create a cylinder that precisely matches the mesh arrangement
+        // Use exactly the same radius as the meshes, not 20% larger
+        const cylinderRadius = radius * 1.01; // Just 1% larger to avoid Z-fighting
         const cylinderHeight = 150;
         
         // Create cylinder geometry with more segments for smoother appearance
+        // More segments (72) creates a smoother match with the mesh arrangement
         const cylinderGeometry = new THREE.CylinderGeometry(
-            cylinderRadius, cylinderRadius, cylinderHeight, 48, 4, true
+            cylinderRadius, cylinderRadius, cylinderHeight, 72, 4, true
         );
         
         // Create a more visible material
@@ -1570,13 +1717,9 @@ updateScrollNumber() {
             depthWrite: false
         });
         
-        // Create the cylinder mesh
+        // Create and position the cylinder to exactly match the mesh arrangement
         this._dragCylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
-        
-        // Position it to match the images
         this._dragCylinder.position.set(0, 0, 0);
-        
-        // Add to the circle container
         this._circleContainer.add(this._dragCylinder);
         
         // Make the cylinder intercept all click events before images
@@ -1650,6 +1793,9 @@ updateScrollNumber() {
         if (typeof this.updateCylinderVisibility === 'function') {
             this.updateCylinderVisibility();
         }
+        
+        // After updating cylinder position via drag, call shared update method
+        this.updateCylindersAfterMovement();
     }
 
     // Add cleanup for new helper objects
@@ -1679,7 +1825,10 @@ updateScrollNumber() {
             this._zAxisHelper = null;
         }
         
-        // Rest of existing cleanup code...
+        // Remove scroll event listener
+        window.removeEventListener('wheel', this.handleScrollRotation);
+        
+        // ... rest of existing cleanup code...
     }
 
     // Update which items should be visible based on their position
@@ -1815,6 +1964,53 @@ updateScrollNumber() {
                 });
             });
         }
+        
+        // Add scroll event listener for rotating the cylinder
+        this.handleScrollRotation = this.handleScrollRotation.bind(this);
+        window.addEventListener('wheel', this.handleScrollRotation);
+    }
+
+    handleScrollRotation(event) {
+        if (!this._inCircleView) return;
+        
+        // Get the delta from the scroll event
+        const delta = event.deltaY || event.detail || -event.wheelDelta;
+        
+        // Calculate rotation amount based on scroll delta
+        // Adjust the multiplier to control sensitivity
+        const rotationAmount = delta * 0.001;
+        
+        // Apply rotation to the cylinder
+        if (this._circleContainer) {
+            this._circleContainer.rotation.y += rotationAmount;
+            
+            // Update visual state of cylinders based on their new position
+            this.updateCylindersAfterMovement();
+        }
+        
+        // Prevent default scrolling behavior while in circle view
+        event.preventDefault();
+    }
+
+    // This method can be called after both drag and scroll interactions
+    updateCylindersAfterMovement() {
+        // Update the visual appearance of cylinders based on their position in the rotation
+        if (!this.imageStore || !this.imageStore.length) return;
+        
+        this.imageStore.forEach((item, index) => {
+            // Calculate the relative position in the rotation
+            const angle = ((index / this.imageStore.length) * Math.PI * 2) + this._circleContainer.rotation.y;
+            
+            // Determine if this item is in the "front" of the rotation
+            const isFront = Math.cos(angle) > 0.7;
+            
+            // Scale up items in the front
+            if (isFront && !item._cylinderData.isHighlighted) {
+                this.setCylinderHover(index);
+            } else if (!isFront && item._cylinderData.isHighlighted) {
+                this.resetCylinderHover(index);
+            }
+        });
     }
 
     // Handle click on a mesh in cylinder view
