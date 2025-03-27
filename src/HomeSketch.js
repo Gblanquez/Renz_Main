@@ -90,6 +90,11 @@ export default class HomeSketch{
         this.setupContainer()
 
         this._inCircleView = false;
+
+        this._isDragging = false;
+        this._dragInertia = { x: 0, y: 0 };
+        this._autoRotate = false;
+        this._lastRotationY = 0;
     }
 
 
@@ -1078,14 +1083,14 @@ updateScrollNumber() {
         // Only update scroll-related properties if NOT in list view
         if (!this._inListView) {
             // Calculate scroll speed
-        if (this.smoothScroll) {
-            this.scrollSpeed = (this.smoothScroll.currentPos || 0) - (this.prevScrollPos || 0);
-            this.prevScrollPos = this.smoothScroll.currentPos || 0;
-        }
-        
+            if (this.smoothScroll) {
+                this.scrollSpeed = (this.smoothScroll.currentPos || 0) - (this.prevScrollPos || 0);
+                this.prevScrollPos = this.smoothScroll.currentPos || 0;
+            }
+            
             // Update positions
-        if (this.smoothScroll) {
-            this.setPosition();
+            if (this.smoothScroll) {
+                this.setPosition();
             }
         }
         
@@ -1093,6 +1098,37 @@ updateScrollNumber() {
         if (this.customPass) {
             this.customPass.uniforms.scrollSpeed.value = this.scrollSpeed || 0;
             this.customPass.uniforms.time.value = this.time;
+        }
+        
+        // Apply inertia and auto-rotation for circle view
+        if (this._inCircleView && this._circleContainer) {
+            // Apply inertia with decay (Y axis only)
+            if (!this._isDragging) {
+                // Apply smoother decay curve
+                this._dragInertia.x *= 0.96;
+                
+                if (Math.abs(this._dragInertia.x) > 0.0001) {
+                    this._circleContainer.rotation.y += this._dragInertia.x;
+                } else {
+                    this._dragInertia.x = 0;
+                }
+            }
+            
+            // Apply auto-rotation if enabled (Y axis only)
+            if (this._autoRotate && !this._isDragging) {
+                // Smoother auto-rotation with slight acceleration/deceleration
+                const time = this.time * 0.1;
+                const baseSpeed = 0.005;
+                const variation = Math.sin(time) * 0.002;
+                
+                this._circleContainer.rotation.y += baseSpeed + variation;
+            }
+            
+            // Update visibility based on rotation
+            if (this._lastRotationY !== this._circleContainer.rotation.y) {
+                this.updateCylinderVisibility();
+                this._lastRotationY = this._circleContainer.rotation.y;
+            }
         }
         
         // Render with appropriate method
@@ -1324,9 +1360,31 @@ updateScrollNumber() {
         // Create master timeline with key phases
         const masterTl = gsap.timeline({
             onComplete: () => {
-                this.fixMeshOrientation();
-                this.setupCylinderInteractions();
-                console.log("Circle view transition complete");
+                try {
+                    // Make sure these methods exist before calling them
+                    if (typeof this.fixMeshOrientation === 'function') {
+                        this.fixMeshOrientation();
+                    } else {
+                        console.error("fixMeshOrientation method not found");
+                    }
+                    
+                    if (typeof this.setupCylinderInteractions === 'function') {
+                        this.setupCylinderInteractions();
+                    } else {
+                        console.error("setupCylinderInteractions method not found");
+                    }
+                    
+                    // Create the draggable cylinder at the end of the animation
+                    if (typeof this.createDraggableCylinder === 'function') {
+                        this.createDraggableCylinder(radius);
+                    } else {
+                        console.error("createDraggableCylinder method not found");
+                    }
+                    
+                    console.log("Circle view transition complete");
+                } catch (error) {
+                    console.error("Error completing circle view setup:", error);
+                }
             }
         });
         
@@ -1436,16 +1494,228 @@ updateScrollNumber() {
             }, null, orbitDelay + 1.7);
         });
         
-        // Phase 3: Complete rotation to final state
+        // Phase 3: Complete rotation to final state with a slight tilt
         masterTl.to(this._circleContainer.rotation, {
             x: 0,
-            y: 0.6,
-            z: -0.5,
+            y: 0.6, // Start with a slight rotation to indicate draggability
+            z: -0.2,
             duration: 1.4,
             ease: "power2.inOut"
         }, 1.2);
         
+        // Add a small oscillation to hint at draggability
+        masterTl.to(this._circleContainer.rotation, {
+            y: 0.8,
+            duration: 1.2,
+            ease: "power1.inOut",
+            yoyo: true,
+            repeat: 1
+        }, 2.6);
+        
         return masterTl;
+    }
+
+    // Make the drag cylinder more accurately aligned with the images
+    createDraggableCylinder(radius) {
+        console.log("Creating larger, more prominent draggable cylinder with radius:", radius);
+        
+        // Clean up existing cylinder if any
+        if (this._dragCylinder) {
+            this._circleContainer.remove(this._dragCylinder);
+            if (this._dragCylinder.geometry) this._dragCylinder.geometry.dispose();
+            if (this._dragCylinder.material) this._dragCylinder.material.dispose();
+            this._dragCylinder = null;
+        }
+        
+        // Clean up existing helpers
+        if (this._ringHelper) {
+            this._circleContainer.remove(this._ringHelper);
+            if (this._ringHelper.geometry) this._ringHelper.geometry.dispose();
+            if (this._ringHelper.material) this._ringHelper.material.dispose();
+            this._ringHelper = null;
+        }
+        
+        if (this._xAxisHelper) {
+            this._circleContainer.remove(this._xAxisHelper);
+            if (this._xAxisHelper.geometry) this._xAxisHelper.geometry.dispose();
+            if (this._xAxisHelper.material) this._xAxisHelper.material.dispose();
+            this._xAxisHelper = null;
+        }
+        
+        if (this._zAxisHelper) {
+            this._circleContainer.remove(this._zAxisHelper);
+            if (this._zAxisHelper.geometry) this._zAxisHelper.geometry.dispose();
+            if (this._zAxisHelper.material) this._zAxisHelper.material.dispose();
+            this._zAxisHelper = null;
+        }
+        
+        // Create a much larger cylinder that surrounds the images
+        // Increase size by 20% for easier interaction
+        const cylinderRadius = radius * 1.2;
+        // Make it much taller to be more visible and grippable
+        const cylinderHeight = 150;
+        
+        // Create cylinder geometry with more segments for smoother appearance
+        const cylinderGeometry = new THREE.CylinderGeometry(
+            cylinderRadius, cylinderRadius, cylinderHeight, 48, 4, true
+        );
+        
+        // Create a more visible material
+        const cylinderMaterial = new THREE.MeshBasicMaterial({
+            color: 0x4da6ff, // Bright blue
+            transparent: true,
+            opacity: 0.3,     // More visible
+            wireframe: true,
+            wireframeLinewidth: 3, // Thicker lines
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        
+        // Create the cylinder mesh
+        this._dragCylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+        
+        // Position it to match the images
+        this._dragCylinder.position.set(0, 0, 0);
+        
+        // Add to the circle container
+        this._circleContainer.add(this._dragCylinder);
+        
+        // Make the cylinder intercept all click events before images
+        this._dragCylinder.renderOrder = 1;
+        
+        // Initialize drag properties
+        this._lastRotationY = this._circleContainer.rotation.y || 0;
+        this._isDragging = false;
+        
+        // Make sure inertia is defined
+        if (!this._dragInertia) {
+            this._dragInertia = { x: 0, y: 0 };
+        }
+        
+        // Set up the drag interaction
+        this.setupCylinderDrag();
+        
+        // Add a visual hint to show it's draggable
+        gsap.to(this._dragCylinder.rotation, {
+            y: 0.1,
+            duration: 1.5,
+            ease: "power1.inOut",
+            yoyo: true,
+            repeat: 2
+        });
+        
+        // Fade in with a slight "pulse" effect to draw attention
+        gsap.fromTo(this._dragCylinder.material, 
+            { opacity: 0 },
+            { 
+                opacity: 0.3, 
+                duration: 1,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    // Add a subtle pulse effect after appearing
+                    gsap.to(this._dragCylinder.material, {
+                        opacity: 0.4,
+                        duration: 0.8,
+                        yoyo: true,
+                        repeat: 1,
+                        ease: "sine.inOut"
+                    });
+                }
+            }
+        );
+        
+        console.log('Larger draggable cylinder created successfully');
+    }
+
+    // Update the rotation behavior to feel more natural
+    handleDragMove(e) {
+        if (!this._inCircleView || !this._isDragging) return;
+        
+        // Calculate movement since last position
+        const deltaX = e.clientX - this._lastMouseX;
+        
+        // Make rotation speed proportional to screen width for consistent feel
+        const rotationFactor = 0.01 * (1000 / window.innerWidth);
+        
+        // Update rotation based on mouse movement - Y axis only
+        this._circleContainer.rotation.y += deltaX * rotationFactor;
+        
+        // Update inertia for smooth deceleration
+        this._dragInertia.x = deltaX * rotationFactor * 0.5;
+        
+        // Save current position for next calculation
+        this._lastMouseX = e.clientX;
+        this._lastMouseY = e.clientY;
+        
+        // Update visibility based on new positions
+        if (typeof this.updateCylinderVisibility === 'function') {
+            this.updateCylinderVisibility();
+        }
+    }
+
+    // Add cleanup for new helper objects
+    cleanupCylinderEvents() {
+        // Existing cleanup code...
+        
+        // Remove ring helper
+        if (this._ringHelper) {
+            this._circleContainer.remove(this._ringHelper);
+            if (this._ringHelper.geometry) this._ringHelper.geometry.dispose();
+            if (this._ringHelper.material) this._ringHelper.material.dispose();
+            this._ringHelper = null;
+        }
+        
+        // Remove axis helpers
+        if (this._xAxisHelper) {
+            this._circleContainer.remove(this._xAxisHelper);
+            if (this._xAxisHelper.geometry) this._xAxisHelper.geometry.dispose();
+            if (this._xAxisHelper.material) this._xAxisHelper.material.dispose();
+            this._xAxisHelper = null;
+        }
+        
+        if (this._zAxisHelper) {
+            this._circleContainer.remove(this._zAxisHelper);
+            if (this._zAxisHelper.geometry) this._zAxisHelper.geometry.dispose();
+            if (this._zAxisHelper.material) this._zAxisHelper.material.dispose();
+            this._zAxisHelper = null;
+        }
+        
+        // Rest of existing cleanup code...
+    }
+
+    // Update which items should be visible based on their position
+    updateCylinderVisibility() {
+        if (!this._inCircleView || !this.imageStore) return;
+        
+        // Calculate the front direction in world space
+        const frontDirection = new THREE.Vector3(0, 0, -1);
+        frontDirection.applyQuaternion(this.camera.quaternion);
+        
+        this.imageStore.forEach(item => {
+            if (!item._cylinderData) return;
+            
+            // Get world position of this mesh
+            const worldPos = new THREE.Vector3();
+            item.mesh.getWorldPosition(worldPos);
+            
+            // Direction from camera to mesh
+            const toMesh = worldPos.clone().sub(this.camera.position).normalize();
+            
+            // Calculate dot product to determine if mesh is facing camera
+            const dotProduct = frontDirection.dot(toMesh);
+            
+            // More visible if facing camera
+            const visibility = 0.3 + Math.max(0, dotProduct) * 0.7;
+            
+            // Update visibility if not currently being hovered
+            if (this._hoverIndex !== item._cylinderData.index) {
+                gsap.to(item.material.uniforms.hoverState, {
+                    value: visibility,
+                    duration: 0.2,
+                    ease: "power1.out"
+                });
+            }
+        });
     }
 
     // Setup consistent cylinder interactions
@@ -1455,70 +1725,78 @@ updateScrollNumber() {
         
         // Create mousemove handler
         this._circleModeMouseMove = (e) => {
-            if (!this._inCircleView || !this.imageStore) return;
+            if (!this._inCircleView || !this.imageStore || this._isDragging) {
+                // Skip hover detection if we're dragging
+                return;
+            }
             
             // Get normalized mouse coordinates
             const mouse = new THREE.Vector2();
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
             
-            // Cast a ray to detect intersections
+            // Use a more targeted approach
             this.raycaster.setFromCamera(mouse, this.camera);
-            const intersects = this.raycaster.intersectObjects(this.scene.children, true);
             
-            // Reset all hover states first
+            // Get only the mesh objects we care about
+            let meshes = [];
+            this.imageStore.forEach(item => {
+                if (item.mesh) meshes.push(item.mesh);
+            });
+            
+            const intersects = this.raycaster.intersectObjects(meshes, false);
+            
             let foundHover = false;
+            let hoveredIndex = null;
             
-            // Find if we're hovering over any mesh
             if (intersects.length > 0) {
-                // Loop through intersections to find the first image mesh
-                for (let i = 0; i < intersects.length; i++) {
-                    const obj = intersects[i].object;
-                    
-                    // Look for meshes from our imageStore
-                    for (let j = 0; j < this.imageStore.length; j++) {
-                        if (this.imageStore[j].mesh === obj) {
-                            // Found a hover
-                            if (this._hoverIndex !== j) {
-                                // Reset previous hover if there was one
-                                if (this._hoverIndex !== null && this._hoverIndex !== undefined) {
-                                    this.resetCylinderHover(this._hoverIndex);
-                                }
-                                
-                                // Set new hover
-                                this.setCylinderHover(j);
-                                this._hoverIndex = j;
-                            }
-                            foundHover = true;
-                            break;
+                // Get the index of the intersected mesh
+                const mesh = intersects[0].object;
+                this.imageStore.forEach((item, idx) => {
+                    if (item.mesh === mesh) {
+                        hoveredIndex = idx;
+                        foundHover = true;
+                    }
+                });
+                
+                // If we found a hover and it's different from the current hover
+                if (foundHover && this._hoverIndex !== hoveredIndex) {
+                    // Reset previous hover if there was one
+                    if (this._hoverIndex !== null && this._hoverIndex !== undefined) {
+                        if (typeof this.resetCylinderHover === 'function') {
+                            this.resetCylinderHover(this._hoverIndex);
                         }
                     }
-                    if (foundHover) break;
+                    
+                    // Set new hover
+                    if (typeof this.setCylinderHover === 'function') {
+                        this.setCylinderHover(hoveredIndex);
+                    }
+                    this._hoverIndex = hoveredIndex;
                 }
-            }
-            
-            // If we're not hovering over any mesh, reset all
-            if (!foundHover && this._hoverIndex !== null) {
+            } else if (!foundHover && this._hoverIndex !== null) {
                 // Reset previous hover
-                this.resetCylinderHover(this._hoverIndex);
+                if (typeof this.resetCylinderHover === 'function') {
+                    this.resetCylinderHover(this._hoverIndex);
+                }
                 this._hoverIndex = null;
-                
-                // Reset all meshes to default state
-                this.imageStore.forEach((item, idx) => {
-                    gsap.to(item.material.uniforms.hoverState, {
-                        value: 0.8, // Default visibility in circle view
-                        duration: 0.3
-                    });
-                });
             }
         };
         
         // Create click handler
         this._circleModeClick = (e) => {
-            if (!this._inCircleView || this._hoverIndex === null) return;
+            // Skip if we just finished dragging
+            if (!this._inCircleView || this._hoverIndex === null || this._isDragging) {
+                return;
+            }
             
-            // Handle click on currently hovered mesh
-            this.handleCylinderClick(this._hoverIndex);
+            // Add a small delay to avoid accidental clicks right after dragging
+            setTimeout(() => {
+                // Only proceed if we're sure it's a deliberate click
+                if (!this._isDragging && this._hoverIndex !== null) {
+                    this.handleCylinderClick(this._hoverIndex);
+                }
+            }, 10);
         };
         
         // Attach the handlers
@@ -1580,32 +1858,11 @@ updateScrollNumber() {
         }, 0);
     }
 
-    // Cleanup cylinder events when switching views
-    cleanupCylinderEvents() {
-        if (this._circleModeMouseMove) {
-            window.removeEventListener('mousemove', this._circleModeMouseMove);
-            this._circleModeMouseMove = null;
-        }
-        if (this._circleModeClick) {
-            window.removeEventListener('click', this._circleModeClick);
-            this._circleModeClick = null;
-        }
-        this._hoverIndex = null;
-        
-        // Reset all hover states
-        if (this.imageStore) {
-            this.imageStore.forEach(item => {
-                gsap.to(item.material.uniforms.hoverState, {
-                    value: 0,
-                    duration: 0.3
-                });
-            });
-        }
-    }
-
-    // Add this update to fixMeshOrientation to keep track of flipped meshes
+    // Add the missing fixMeshOrientation method
     fixMeshOrientation() {
         if (!this.imageStore || !this._inCircleView) return;
+        
+        console.log("Fixing mesh orientation for circle view");
         
         // Center position for reference
         const centerPosition = new THREE.Vector3(0, 0, 0);
@@ -1614,6 +1871,12 @@ updateScrollNumber() {
             if (!item._cylinderData) return;
             
             const angle = item._cylinderData.angle;
+            
+            // Ensure mesh is oriented correctly to face center
+            item.mesh.lookAt(centerPosition);
+            
+            // Rotate to face outward rather than inward
+            item.mesh.rotateY(Math.PI);
             
             // Check if in the back half of the circle (needs flipping)
             if (Math.abs(angle) > Math.PI/2) {
@@ -1640,6 +1903,200 @@ updateScrollNumber() {
                     }
                 }
             }
+            
+            // Store the original rotation for reference
+            item._cylinderData.originalRotation = item.mesh.rotation.clone();
+        });
+    }
+
+    // Setup consistent cylinder interactions
+    setupCylinderDrag() {
+        console.log("Setting up cylinder drag with click pass-through");
+        // Track drag state
+        this._isDragging = false;
+        this._lastMouseX = 0;
+        this._lastMouseY = 0;
+        
+        // Remove any existing event listeners first
+        if (this._dragStartHandler) {
+            window.removeEventListener('mousedown', this._dragStartHandler);
+            window.removeEventListener('mousemove', this._dragMoveHandler);
+            window.removeEventListener('mouseup', this._dragEndHandler);
+            window.removeEventListener('mouseleave', this._dragLeaveHandler);
+            window.removeEventListener('touchstart', this._handleTouchStart);
+            window.removeEventListener('touchmove', this._handleTouchMove);
+            window.removeEventListener('touchend', this._handleTouchEnd);
+            window.removeEventListener('dblclick', this._handleDblClick);
+        }
+        
+        // Define handlers as direct functions (not methods)
+        this._dragStartHandler = (e) => {
+            if (!this._inCircleView) return;
+            
+            // Always enable dragging without raycasting for better UX
+            this._isDragging = true;
+            this._lastMouseX = e.clientX;
+            this._lastMouseY = e.clientY;
+            
+            // Add a visual indicator for dragging
+            document.body.style.cursor = 'grabbing';
+            
+            // Highlight the cylinder to indicate dragging
+            if (this._dragCylinder) {
+                gsap.to(this._dragCylinder.material, {
+                    opacity: 0.4,
+                    duration: 0.2
+                });
+            }
+            
+            // No longer prevent propagation - allow clicks to pass through
+            // e.stopPropagation(); - REMOVED
+        };
+        
+        this._dragMoveHandler = (e) => {
+            if (!this._inCircleView || !this._isDragging) return;
+            
+            // Calculate movement since last position
+            const deltaX = e.clientX - this._lastMouseX;
+            
+            // Make rotation speed proportional to screen width for consistent feel
+            const rotationFactor = 0.01 * (1000 / window.innerWidth);
+            
+            // Update rotation based on mouse movement - Y axis only
+            this._circleContainer.rotation.y += deltaX * rotationFactor;
+            
+            // Update inertia for smooth deceleration
+            this._dragInertia.x = deltaX * rotationFactor * 0.5;
+            
+            // Save current position for next calculation
+            this._lastMouseX = e.clientX;
+            this._lastMouseY = e.clientY;
+            
+            // Update visibility based on new positions
+            if (typeof this.updateCylinderVisibility === 'function') {
+                this.updateCylinderVisibility();
+            }
+        };
+        
+        this._dragEndHandler = () => {
+            if (!this._inCircleView) return;
+            
+            this._isDragging = false;
+            document.body.style.cursor = 'auto';
+            
+            // Return cylinder to normal opacity
+            if (this._dragCylinder) {
+                gsap.to(this._dragCylinder.material, {
+                    opacity: 0.3,
+                    duration: 0.3
+                });
+            }
+        };
+        
+        this._dragLeaveHandler = this._dragEndHandler;
+        
+        // Add event listeners
+        window.addEventListener('mousedown', this._dragStartHandler);
+        window.addEventListener('mousemove', this._dragMoveHandler);
+        window.addEventListener('mouseup', this._dragEndHandler);
+        window.addEventListener('mouseleave', this._dragLeaveHandler);
+        
+        // Add touch support without preventing defaults
+        this._handleTouchStart = (e) => {
+            if (e.touches.length === 1 && this._inCircleView) {
+                const touch = e.touches[0];
+                this._isDragging = true;
+                this._lastMouseX = touch.clientX;
+                this._lastMouseY = touch.clientY;
+            }
+        };
+        
+        this._handleTouchMove = (e) => {
+            if (e.touches.length === 1 && this._isDragging && this._inCircleView) {
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - this._lastMouseX;
+                const rotationFactor = 0.01 * (1000 / window.innerWidth);
+                
+                this._circleContainer.rotation.y += deltaX * rotationFactor;
+                this._dragInertia.x = deltaX * rotationFactor * 0.5;
+                
+                this._lastMouseX = touch.clientX;
+                this._lastMouseY = touch.clientY;
+                
+                if (typeof this.updateCylinderVisibility === 'function') {
+                    this.updateCylinderVisibility();
+                }
+                
+                // We still need to prevent default on touch move to prevent page scrolling
+                e.preventDefault();
+            }
+        };
+        
+        this._handleTouchEnd = () => {
+            this._isDragging = false;
+        };
+        
+        window.addEventListener('touchstart', this._handleTouchStart, { passive: false });
+        window.addEventListener('touchmove', this._handleTouchMove, { passive: false });
+        window.addEventListener('touchend', this._handleTouchEnd);
+        
+        // Add double-click for auto-rotation
+        this._handleDblClick = () => {
+            if (this._inCircleView) {
+                this._autoRotate = !this._autoRotate;
+                console.log('Auto-rotate:', this._autoRotate ? 'enabled' : 'disabled');
+            }
+        };
+        
+        window.addEventListener('dblclick', this._handleDblClick);
+        
+        console.log("Cylinder drag events setup complete");
+    }
+
+    // Now let's properly implement the setCylinderHover and resetCylinderHover methods
+    setCylinderHover(index) {
+        console.log(`Setting cylinder hover for index ${index}`);
+        if (!this.imageStore || !this.imageStore[index]) return;
+        
+        const item = this.imageStore[index];
+        if (!item._cylinderData) return;
+        
+        // Highlight the hovered item
+        gsap.to(item.material.uniforms.hoverState, {
+            value: 1.2, // Increase visibility for hover effect
+            duration: 0.3,
+            ease: "power2.out"
+        });
+        
+        // Slightly scale up for emphasis
+        gsap.to(item.mesh.scale, {
+            x: item._cylinderData.targetScale.x * 1.05,
+            y: item._cylinderData.targetScale.y * 1.05,
+            duration: 0.3,
+            ease: "back.out(1.5)"
+        });
+    }
+
+    resetCylinderHover(index) {
+        console.log(`Resetting cylinder hover for index ${index}`);
+        if (!this.imageStore || !this.imageStore[index]) return;
+        
+        const item = this.imageStore[index];
+        if (!item._cylinderData) return;
+        
+        // Return to normal visibility
+        gsap.to(item.material.uniforms.hoverState, {
+            value: 0.8, // Back to default visibility in circle view
+            duration: 0.3,
+            ease: "power2.out"
+        });
+        
+        // Return to normal scale
+        gsap.to(item.mesh.scale, {
+            x: item._cylinderData.targetScale.x,
+            y: item._cylinderData.targetScale.y,
+            duration: 0.3,
+            ease: "power2.out"
         });
     }
 }
