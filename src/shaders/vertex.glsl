@@ -9,14 +9,15 @@ uniform vec2 hover;
 
 uniform vec3 uPositionOffset;
 
-
-
-
+uniform float uTransitionProgress;
+uniform float uCircleRadius;
+uniform vec2 uCircleCenter;
+uniform float uCircleAngle;
+uniform float uViewTransition;
+uniform float uMeshIndex; // For sequencing waves
 
 varying vec2 vUv;
 varying vec2 vSize;
-
-
 
 void main(){
   float PI = 3.1415926;
@@ -59,8 +60,52 @@ void main(){
     // Set the size based on the cornersProgress
     vSize = mix(uQuadSize, uResolution, cornersProgress);
 
+    // View transition (carousel to circle)
+    if (uViewTransition > 0.0) {
+        // Create smooth transition curve
+        float t = uViewTransition;
+        
+        // Apply easing for smoother transition
+        float smoothT = t * t * (3.0 - 2.0 * t); // Smoothstep easing
+        
+        // Calculate world position for this vertex
+        vec4 worldPos = modelMatrix * vec4(newposition, 1.0);
+        
+        // Calculate the "center stack" position (everything at center)
+        vec4 centerPos = vec4(0.0, 0.0, 0.0, 1.0);
+        
+        // Calculate the final circle position
+        vec4 circlePos = worldPos;
+        circlePos.x = cos(uCircleAngle) * uCircleRadius;
+        circlePos.z = sin(uCircleAngle) * uCircleRadius;
+        circlePos.y = 0.0;
+        
+        // Create wave effect parameters
+        float delay = uMeshIndex * 0.1; // Stagger the animation based on mesh index
+        float waveFreq = 3.0;
+        float waveSpeed = 2.0;
+        
+        // Create a wave function that peaks in the middle of the transition
+        float waveProgress = smoothT; 
+        float waveAmplitude = 0.4 * sin(waveProgress * PI); // Peaks at 0.5
+        
+        // Calculate wave position
+        vec4 wavePos = mix(centerPos, circlePos, smoothT);
+        
+        // Add waves in all dimensions
+        wavePos.x += waveAmplitude * sin(waveFreq * smoothT * PI + delay);
+        wavePos.y += waveAmplitude * cos(waveFreq * smoothT * PI + delay * 1.5);
+        wavePos.z += waveAmplitude * sin(waveFreq * smoothT * PI + delay * 0.7 + time);
+        
+        // Create vertex-specific distortion
+        float vertexNoise = length(vUv - 0.5);
+        wavePos.x += vertexNoise * waveAmplitude * 0.2 * sin(time * 2.0 + smoothT * PI * 3.0);
+        wavePos.y += vertexNoise * waveAmplitude * 0.2 * cos(time * 1.5 + smoothT * PI * 2.0);
+        
+        // Apply transformation to final state, mixing from original state to wave position
+        finalState = mix(modelMatrix * vec4(newposition, 1.0), wavePos, smoothT);
+    }
+
     // Set the final position of the vertex
     gl_Position = projectionMatrix * viewMatrix * finalState;
-
-
 }

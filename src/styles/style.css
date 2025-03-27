@@ -186,13 +186,13 @@ canvas{
 }
 
 .indexH2{
-    opacity: 0.4;
-    display: none;
+    opacity: 1;
+    /* display: block; */
 }
 
 .indexP{
-    opacity: 0.4;
-    display: none;
+    opacity: 1;
+    /* display: block; */
 }
 
 
@@ -273,12 +273,12 @@ canvas{
 .item h2{
     font-weight: 300;
     color: #fff;
-    opacity: 0;
+    opacity: 1;
 }
 .item p{
     font-weight: 300;
     color: #ccc;
-    opacity: 0;
+    opacity: 1;
 }
 
 
@@ -303,7 +303,40 @@ canvas{
     opacity: 0.5; /* Dim to indicate inactive */
 }
 
+.content-list
+{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 100vw;
+    gap: 0.3vw;
+    padding: 3vw;
+    padding-top: 14vw;
+    box-sizing: border-box;
+}
 
+.item-list-info
+{
+    display: flex;
+    flex-direction: row;
+    gap: 1vw;
+    width: 100%;
+    justify-content: space-between;
+}
+.content-list a
+{
+    text-decoration: none;
+    color: #fff;
+}
+
+.item-list
+{
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 1vw;
+}
 
 .single h1{
     margin-bottom: 2rem;
