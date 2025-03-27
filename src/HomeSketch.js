@@ -1465,7 +1465,7 @@ updateScrollNumber() {
     switchToCircleView() {
         if (!this.imageStore) return;
         
-        console.log("Creating cylindrical view with consistent radius");
+        console.log("Creating perfectly oriented cylinder with optimal spacing");
         
         // Save original setPosition for later restoration
         if (!this._originalSetPosition) {
@@ -1497,26 +1497,27 @@ updateScrollNumber() {
         // Calculate optimal cylinder properties
         const numMeshes = this.imageStore.length;
         
-        // Calculate base scale for consistent sizing
-        const baseScale = (this.width * 0.12) / 
-                        Math.max(
-                            this.imageStore.reduce((max, item) => Math.max(max, item.originalWidth), 0),
-                            this.imageStore.reduce((max, item) => Math.max(max, item.originalHeight), 0)
-                        );
+        // Use a smaller radius for better viewport fit
+        // Reduced from 420 to a more comfortable 350
+        const radius = 350;
         
-        // Calculate circle parameters with even spacing
-        const avgScaledWidth = this.imageStore.reduce((sum, item) => 
-            sum + item.originalWidth * baseScale, 0) / numMeshes;
+        // IMPORTANT: Create the cylinder visual first to establish reference
+        this.createDraggableCylinder(radius);
         
-        const spacing = avgScaledWidth * 0.01; // Minimal spacing for continuous surface
+        // Get average dimensions to ensure consistent sizing and spacing
+        const avgWidth = this.imageStore.reduce((sum, item) => sum + item.width, 0) / numMeshes;
+        const avgHeight = this.imageStore.reduce((sum, item) => sum + item.height, 0) / numMeshes;
         
-        // Calculate circle radius based on circumference and number of meshes
-        const totalWidth = (avgScaledWidth + spacing) * numMeshes;
-        const radius = totalWidth / (2 * Math.PI);
+        // CRITICAL: Keep the large spacing factor
+        // This ensures gaps between meshes
+        const spacingFactor = 1.0; // 100% spacing
         
-        console.log(`Creating cylinder with radius: ${radius}, meshes: ${numMeshes}`);
+        // Calculate the angular spread with spacing included
+        const totalAngle = Math.PI * 2; // Complete circle
+        const anglePerMesh = totalAngle / (numMeshes * (1 + spacingFactor));
+        const spacedAnglePerMesh = anglePerMesh * (1 + spacingFactor);
         
-        // Pre-calculate all final positions and orientations
+        // Store current positions for all meshes
         this.imageStore.forEach((item, index) => {
             // Store current carousel position
             item._carouselPosition = {
@@ -1530,101 +1531,95 @@ updateScrollNumber() {
                 rotationZ: item.mesh.rotation.z
             };
             
-            // Calculate evenly spaced angle around circle
-            const angle = -Math.PI/2 + (Math.PI * 2 / numMeshes) * index;
+            // Calculate evenly spaced angle around circle with spacing
+            const angle = index * spacedAnglePerMesh;
             
-            // Calculate final position on the circle using this angle
-            const posX = Math.cos(angle) * radius;
-            const posY = 0;
-            const posZ = Math.sin(angle) * radius;
+            // Calculate position on cylinder using angle
+            const posX = Math.sin(angle) * radius;
+            const posZ = Math.cos(angle) * radius;
             
-            // Calculate target scale (consistent for all meshes)
-            const scaledWidth = item.originalWidth * baseScale;
-            const scaledHeight = item.originalHeight * baseScale;
-            
-            // Set up shader uniforms
-            if (!item.material.uniforms.uTransitionProgress) {
-                item.material.uniforms.uTransitionProgress = { value: 0 };
-                item.material.uniforms.uCircleRadius = { value: radius };
-                item.material.uniforms.uCircleCenter = { value: new THREE.Vector2(0, 0) };
-                item.material.uniforms.uCircleAngle = { value: angle };
-            } else {
-                item.material.uniforms.uCircleRadius.value = radius;
-                item.material.uniforms.uCircleCenter.value = new THREE.Vector2(0, 0);
-                item.material.uniforms.uCircleAngle.value = angle;
-                item.material.uniforms.uTransitionProgress.value = 0;
-            }
-            
-            // Material needs to be double-sided for cylinder view
+            // Material setup
             item.material.side = THREE.DoubleSide;
             
             // Store data for cylinder view
             item._cylinderData = {
                 angle,
-                originalPosition: new THREE.Vector3(posX, posY, posZ),
                 index,
+                isHighlighted: false,
+                originalPosition: new THREE.Vector3(posX, 0, posZ),
+                // Keep aspect ratio but make slightly smaller for better fit
                 targetScale: {
-                    x: scaledWidth,
-                    y: scaledHeight,
+                    x: item.mesh.scale.x * 0.8, // Slightly smaller scale (reduced from 0.85)
+                    y: item.mesh.scale.y * 0.8, // Slightly smaller scale
                     z: 1
                 }
             };
             
-            // Move mesh to circle container
+            // IMMEDIATELY move mesh to circle container
             if (this.scene.children.includes(item.mesh)) {
                 this.scene.remove(item.mesh);
                 this._circleContainer.add(item.mesh);
+                
+                // Set initial position to current position to avoid glitches
+                item.mesh.position.set(
+                    item._carouselPosition.x, 
+                    item._carouselPosition.y, 
+                    item._carouselPosition.z
+                );
             }
         });
         
-        // Create the draggable cylinder visual
-        if (typeof this.createDraggableCylinder === 'function') {
-            this.createDraggableCylinder(radius);
-        }
-        
-        // Set up animation timeline
+        // Animation timeline
         const masterTl = gsap.timeline({
             onComplete: () => {
                 console.log("Cylinder view complete");
                 
-                // Important: Call fixMeshOrientation again after animation completes
-                // This ensures all meshes are perfectly oriented
-                this.fixMeshOrientation();
+                // CRITICAL: Apply exact rotation after animation
+                this.imageStore.forEach((item) => {
+                    if (!item._cylinderData) return;
+                    
+                    // Get position relative to center
+                    const pos = item.mesh.position;
+                    
+                    // Calculate angle to center in the XZ plane
+                    // This makes the mesh face inward toward the center
+                    const angleToCenter = Math.atan2(pos.x, pos.z);
+                    
+                    // Apply rotation to face inward
+                    item.mesh.rotation.set(0, angleToCenter, 0);
+                });
                 
-                // Set up interactions
-                if (typeof this.setupCylinderInteractions === 'function') {
-                    this.setupCylinderInteractions();
-                }
+                // Set up interactions after orientation is fixed
+                this.setupCylinderInteractions();
             }
         });
         
         // Animate each mesh into position
         this.imageStore.forEach((item, index) => {
-            const normalizedIndex = index / (numMeshes - 1);
-            const delay = 0.05 * normalizedIndex;
+            // Use shorter delay for faster animation
+            const delay = 0.03 * index;
             
-            // Position animation with nice arc
+            // Position animation with improved easing
             masterTl.to(item.mesh.position, {
                 x: item._cylinderData.originalPosition.x,
-                y: item._cylinderData.originalPosition.y,
+                y: item._cylinderData.originalPosition.y, 
                 z: item._cylinderData.originalPosition.z,
                 duration: 1.2,
                 ease: "power2.out",
                 delay: delay
             }, 0);
             
-            // Apply consistent rotation - ALL meshes face inward from center
+            // Approximate rotation during animation
             masterTl.to(item.mesh.rotation, {
                 x: 0,
-                // Critical - use exact same angle calculation with Math.PI to face inward
-                y: Math.atan2(item._cylinderData.originalPosition.z, item._cylinderData.originalPosition.x) + Math.PI,
+                y: item._cylinderData.angle,
                 z: 0,
-                duration: 0.8,
-                ease: "power1.out",
+                duration: 1.0,
+                ease: "power2.out",
                 delay: delay
             }, 0);
             
-            // Scale animation
+            // Scale animation - use the target scale we calculated
             masterTl.to(item.mesh.scale, {
                 x: item._cylinderData.targetScale.x,
                 y: item._cylinderData.targetScale.y,
@@ -1632,28 +1627,20 @@ updateScrollNumber() {
                 duration: 1.0,
                 ease: "back.out(1.2)",
                 delay: delay
-            }, 0.6);
+            }, 0.2);
             
-            // Shader transition
-            masterTl.to(item.material.uniforms.uTransitionProgress, {
-                value: 1.0,
-                duration: 1.0,
-                ease: "power2.inOut",
-                delay: delay
-            }, 0.4);
-            
-            // Set visibility based on position
+            // Set visibility
             masterTl.to(item.material.uniforms.hoverState, {
-                value: 0.8, // Default visibility
+                value: 0.8,
                 duration: 0.8,
                 ease: "power2.inOut",
                 delay: delay
-            }, 0.8);
+            }, 0.4);
         });
         
-        // Add some nice container rotation animation
+        // Add container rotation animation - slightly adjust the initial rotation
         masterTl.to(this._circleContainer.rotation, {
-            y: 0.4, 
+            y: 0.2, // Reduced from 0.4 to show a better initial view
             duration: 2.0,
             ease: "power2.inOut"
         }, 0.6);
@@ -1661,11 +1648,11 @@ updateScrollNumber() {
         return masterTl;
     }
 
-    // Also update createDraggableCylinder to match the exact radius of the mesh arrangement
+    // Also update createDraggableCylinder to match the new radius
     createDraggableCylinder(radius) {
-        console.log("Creating perfectly aligned draggable cylinder with radius:", radius);
+        console.log("Creating properly oriented cylinder with radius:", radius);
         
-        // Clean up existing cylinder and helpers
+        // Clean up existing cylinder
         if (this._dragCylinder) {
             this._circleContainer.remove(this._dragCylinder);
             if (this._dragCylinder.geometry) this._dragCylinder.geometry.dispose();
@@ -1681,55 +1668,35 @@ updateScrollNumber() {
             this._ringHelper = null;
         }
         
-        if (this._xAxisHelper) {
-            this._circleContainer.remove(this._xAxisHelper);
-            if (this._xAxisHelper.geometry) this._xAxisHelper.geometry.dispose();
-            if (this._xAxisHelper.material) this._xAxisHelper.material.dispose();
-            this._xAxisHelper = null;
-        }
-        
-        if (this._zAxisHelper) {
-            this._circleContainer.remove(this._zAxisHelper);
-            if (this._zAxisHelper.geometry) this._zAxisHelper.geometry.dispose();
-            if (this._zAxisHelper.material) this._zAxisHelper.material.dispose();
-            this._zAxisHelper = null;
-        }
-        
-        // Create a cylinder that precisely matches the mesh arrangement
-        // Use exactly the same radius as the meshes, not 20% larger
-        const cylinderRadius = radius * 1.01; // Just 1% larger to avoid Z-fighting
-        const cylinderHeight = 150;
-        
         // Create cylinder geometry with more segments for smoother appearance
-        // More segments (72) creates a smoother match with the mesh arrangement
         const cylinderGeometry = new THREE.CylinderGeometry(
-            cylinderRadius, cylinderRadius, cylinderHeight, 72, 4, true
+            radius, radius, 150, 72, 4, true
         );
         
-        // Create a more visible material
+        // Create a more visible but subtle material
         const cylinderMaterial = new THREE.MeshBasicMaterial({
-            color: 0x4da6ff, // Bright blue
+            color: 0x4da6ff,
             transparent: true,
-            opacity: 0.3,     // More visible
+            opacity: 0.2, // Even more transparent for a subtler wireframe
             wireframe: true,
-            wireframeLinewidth: 3, // Thicker lines
+            wireframeLinewidth: 1.5, // Slightly thinner lines
             side: THREE.DoubleSide,
             depthWrite: false
         });
         
-        // Create and position the cylinder to exactly match the mesh arrangement
+        // Create and position the cylinder
         this._dragCylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
         this._dragCylinder.position.set(0, 0, 0);
+        
         this._circleContainer.add(this._dragCylinder);
         
-        // Make the cylinder intercept all click events before images
+        // Make cylinder intercept events
         this._dragCylinder.renderOrder = 1;
         
         // Initialize drag properties
         this._lastRotationY = this._circleContainer.rotation.y || 0;
         this._isDragging = false;
         
-        // Make sure inertia is defined
         if (!this._dragInertia) {
             this._dragInertia = { x: 0, y: 0 };
         }
@@ -1737,36 +1704,10 @@ updateScrollNumber() {
         // Set up the drag interaction
         this.setupCylinderDrag();
         
-        // Add a visual hint to show it's draggable
-        gsap.to(this._dragCylinder.rotation, {
-            y: 0.1,
-            duration: 1.5,
-            ease: "power1.inOut",
-            yoyo: true,
-            repeat: 2
-        });
+        // Store radius for reference
+        this.cylinderRadius = radius;
         
-        // Fade in with a slight "pulse" effect to draw attention
-        gsap.fromTo(this._dragCylinder.material, 
-            { opacity: 0 },
-            { 
-                opacity: 0.3, 
-                duration: 1,
-                ease: "power2.inOut",
-                onComplete: () => {
-                    // Add a subtle pulse effect after appearing
-                    gsap.to(this._dragCylinder.material, {
-                        opacity: 0.4,
-                        duration: 0.8,
-                        yoyo: true,
-                        repeat: 1,
-                        ease: "sine.inOut"
-                    });
-                }
-            }
-        );
-        
-        console.log('Larger draggable cylinder created successfully');
+        return this._dragCylinder;
     }
 
     // Update the rotation behavior to feel more natural
