@@ -264,7 +264,7 @@ export default class HomeSketch{
     returnToCarouselView() {
         if (!this.imageStore) return;
 
-        console.log("Creating fluid interpolation back to carousel");
+        console.log("Creating fluid interpolation back to carousel without texture flipping");
         
         // Determine which view we're returning from
         const fromCircleView = this._inCircleView;
@@ -338,6 +338,15 @@ export default class HomeSketch{
         
         // If coming from circle view, apply mirror-like reverse animation
         if (fromCircleView) {
+            // First fade out the draggable cylinder 
+            if (this._dragCylinder) {
+                masterTl.to(this._dragCylinder.material, {
+                    opacity: 0,
+                    duration: 0.5,
+                    ease: "power1.out"
+                }, 0);
+            }
+            
             // Begin rotating container back to flat position
             masterTl.to(this._circleContainer.rotation, {
                 x: 0, 
@@ -429,15 +438,7 @@ export default class HomeSketch{
                     // Reset rotation
                     item.mesh.rotation.set(0, 0, 0);
                     
-                    // Fix texture orientation if needed
-                    if (item.material._isFlippedForCircle) {
-                        const currentTexture = item.material.uniforms.uTexture.value;
-                        if (currentTexture) {
-                            currentTexture.flipY = !currentTexture.flipY;
-                            currentTexture.needsUpdate = true;
-                            delete item.material._isFlippedForCircle;
-                        }
-                    }
+                    // We're keeping textures in their original orientation
                 }, null, delay + 1.4);
             });
             
@@ -1243,11 +1244,41 @@ updateScrollNumber() {
         }
     }
 
-    // Update switchToCircleView to use a shader-based transition approach
+    // Modify the fixMeshOrientation method to be simpler and more direct
+    fixMeshOrientation() {
+        if (!this.imageStore || !this._inCircleView) return;
+        
+        console.log("Fixing mesh orientation without texture flipping");
+        
+        // Center position for reference
+        const centerPosition = new THREE.Vector3(0, 0, 0);
+        
+        this.imageStore.forEach((item) => {
+            if (!item._cylinderData) return;
+            
+            // Just apply a consistent orientation that looks good
+            // facing outward from center
+            const angle = item._cylinderData.angle;
+            
+            // Calculate the orientation directly without lookAt
+            // This gives us more control over final orientation
+            item.mesh.position.copy(item._cylinderData.originalPosition);
+            
+            // Set rotation directly to face outward
+            item.mesh.rotation.y = angle + Math.PI;
+            
+            // Store the rotation for reference
+            item._cylinderData.originalRotation = item.mesh.rotation.clone();
+        });
+        
+        console.log("Mesh orientation complete");
+    }
+
+    // Completely revise the switchToCircleView method to avoid the flickering
     switchToCircleView() {
         if (!this.imageStore) return;
         
-        console.log("Creating fluid interpolation to circle view");
+        console.log("Creating immediate cylinder view transition");
         
         // Save original setPosition for later restoration
         if (!this._originalSetPosition) {
@@ -1297,15 +1328,18 @@ updateScrollNumber() {
         const totalWidth = (avgScaledWidth + spacing) * numMeshes;
         const radius = totalWidth / (2 * Math.PI);
         
-        // Save current positions and prepare meshes
+        // STEP 1: Pre-calculate all final positions and orientations
         this.imageStore.forEach((item, index) => {
-            // IMPORTANT: Store actual current carousel position for transition
+            // Store current carousel position for transition
             item._carouselPosition = {
                 x: item.mesh.position.x,
                 y: item.mesh.position.y,
                 z: item.mesh.position.z,
                 scaleX: item.mesh.scale.x,
-                scaleY: item.mesh.scale.y
+                scaleY: item.mesh.scale.y,
+                rotationX: item.mesh.rotation.x,
+                rotationY: item.mesh.rotation.y,
+                rotationZ: item.mesh.rotation.z
             };
             
             // Calculate angle for this mesh in the final circle
@@ -1347,7 +1381,9 @@ updateScrollNumber() {
                     x: scaledWidth,
                     y: scaledHeight,
                     z: 1
-                }
+                },
+                // Store target rotation - facing outward is key to avoid flipped appearance
+                targetRotation: new THREE.Euler(0, angle + Math.PI, 0)
             };
             
             // Move mesh to circle container for proper transformation
@@ -1357,160 +1393,123 @@ updateScrollNumber() {
             }
         });
         
-        // Create master timeline with key phases
+        // STEP 2: Create the draggable cylinder RIGHT AWAY
+        // This ensures it's there from the first visible moment
+        if (typeof this.createDraggableCylinder === 'function') {
+            this.createDraggableCylinder(radius);
+            
+            // Start with cylinder visible but slightly transparent
+            if (this._dragCylinder) {
+                this._dragCylinder.material.opacity = 0.15;
+            }
+        }
+        
+        // STEP 3: Set up the animation timeline
         const masterTl = gsap.timeline({
             onComplete: () => {
-                try {
-                    // Make sure these methods exist before calling them
-                    if (typeof this.fixMeshOrientation === 'function') {
-                        this.fixMeshOrientation();
-                    } else {
-                        console.error("fixMeshOrientation method not found");
-                    }
-                    
-                    if (typeof this.setupCylinderInteractions === 'function') {
-                        this.setupCylinderInteractions();
-                    } else {
-                        console.error("setupCylinderInteractions method not found");
-                    }
-                    
-                    // Create the draggable cylinder at the end of the animation
-                    if (typeof this.createDraggableCylinder === 'function') {
-                        this.createDraggableCylinder(radius);
-                    } else {
-                        console.error("createDraggableCylinder method not found");
-                    }
-                    
-                    console.log("Circle view transition complete");
-                } catch (error) {
-                    console.error("Error completing circle view setup:", error);
+                console.log("Circle view transition complete");
+                
+                // Set up interactions once animation completes
+                if (typeof this.setupCylinderInteractions === 'function') {
+                    this.setupCylinderInteractions();
+                }
+                
+                // Make cylinder fully visible at end of animation
+                if (this._dragCylinder) {
+                    gsap.to(this._dragCylinder.material, {
+                        opacity: 0.3, 
+                        duration: 0.5,
+                        ease: "power2.inOut"
+                    });
                 }
             }
         });
         
-        // Phase 1: Initial preparation - slight movement toward center
+        // Create fluid animation for each mesh
         this.imageStore.forEach((item, index) => {
             const normalizedIndex = index / (numMeshes - 1);
-            const itemDelay = 0.05 * normalizedIndex;
+            const delay = 0.05 * normalizedIndex;
             
-            // Ease items slightly toward center
+            // Arc trajectory with staggered timing
+            // First move up and slightly in path
             masterTl.to(item.mesh.position, {
-                x: item._carouselPosition.x * 0.8,
-                y: item._carouselPosition.y * 0.8,
-                z: item._carouselPosition.z,
-                duration: 0.7,
+                x: item._carouselPosition.x * 0.5 + item._cylinderData.originalPosition.x * 0.5,
+                y: item._carouselPosition.y * 0.5 + 40, // Arc upward 
+                z: item._carouselPosition.z * 0.5 + item._cylinderData.originalPosition.z * 0.5,
+                duration: 1.2,
                 ease: "power2.inOut",
-                delay: itemDelay
+                delay: delay
             }, 0);
             
-            // Begin shader transition
-            masterTl.to(item.material.uniforms.uTransitionProgress, {
-                value: 0.15, // Just start the effect
-                duration: 0.7,
-                ease: "power1.in",
-                delay: itemDelay
+            // Apply rotation immediately to avoid "flipped" appearance
+            masterTl.to(item.mesh.rotation, {
+                x: 0,
+                y: item._cylinderData.targetRotation.y,
+                z: 0,
+                duration: 0.8,
+                ease: "power1.inOut",
+                delay: delay
             }, 0);
-        });
-        
-        // Rotate container subtly to prepare for the main movement
-        masterTl.to(this._circleContainer.rotation, {
-            y: 0.2,
-            duration: 0.8,
-            ease: "power1.inOut"
-        }, 0.2);
-        
-        // Phase 2: Main transition with path movement
-        // Using direct interpolation instead of bezier paths
-        this.imageStore.forEach((item, index) => {
-            const normalizedIndex = index / (numMeshes - 1);
             
-            // Calculate item-specific parameters for organic movement
-            const orbitDelay = 0.4 + normalizedIndex * 0.2;
-            const targetPos = item._cylinderData.originalPosition;
-            
-            // Store intermediate position for the arc effect
-            const initialX = item._carouselPosition.x * 0.8;
-            const initialY = item._carouselPosition.y * 0.8;
-            const initialZ = item._carouselPosition.z;
-            
-            // First move up and slightly forward (arc start)
+            // Reach final position
             masterTl.to(item.mesh.position, {
-                x: initialX * 0.6 + targetPos.x * 0.4,
-                y: initialY * 0.6 + 50 + Math.sin(index) * 30, // Rise up
-                z: initialZ * 0.6 + targetPos.z * 0.4 - 20,
-                duration: 0.9,
-                ease: "power2.inOut",
-                delay: orbitDelay
-            }, 0.8);
-            
-            // Then move to final position (arc complete)
-            masterTl.to(item.mesh.position, {
-                x: targetPos.x,
-                y: targetPos.y,
-                z: targetPos.z,
+                x: item._cylinderData.originalPosition.x,
+                y: item._cylinderData.originalPosition.y,
+                z: item._cylinderData.originalPosition.z,
                 duration: 1.0,
-                ease: "power2.inOut"
-            }, 0.8 + orbitDelay + 0.8);
+                ease: "back.out(1.2)", // Slight overshoot for dynamic feel
+                delay: delay
+            }, 0.9);
             
-            // Animate uniform transition progress in sync with position
-            masterTl.to(item.material.uniforms.uTransitionProgress, {
-                value: 0.5, // Mid-transition
-                duration: 0.9,
-                ease: "power1.inOut", 
-                delay: orbitDelay
-            }, 0.8);
-            
-            // Complete shader transition
-            masterTl.to(item.material.uniforms.uTransitionProgress, {
-                value: 1,
-                duration: 1.0,
-                ease: "power1.inOut"
-            }, 0.8 + orbitDelay + 0.8);
-            
-            // Scale to final size with subtle bounce
+            // Scale to final size
             masterTl.to(item.mesh.scale, {
                 x: item._cylinderData.targetScale.x,
                 y: item._cylinderData.targetScale.y,
                 z: 1,
-                duration: 1.6,
-                ease: "back.out(1.3)",
-                delay: orbitDelay + 0.3
-            }, 0.9);
+                duration: 1.2,
+                ease: "power2.out",
+                delay: delay
+            }, 0.6);
             
-            // Animate hover state based on final position
+            // Shader transition
+            masterTl.to(item.material.uniforms.uTransitionProgress, {
+                value: 1.0,
+                duration: 1.4,
+                ease: "power2.inOut",
+                delay: delay
+            }, 0.4);
+            
+            // Set appropriate visibility
             const visibilityFactor = 0.5 + (Math.cos(item._cylinderData.angle) + 1) * 0.25;
             masterTl.to(item.material.uniforms.hoverState, {
                 value: visibilityFactor,
-                duration: 1.2,
-                ease: "power1.inOut",
-                delay: orbitDelay + 0.5
-            }, 1.1);
-            
-            // Set final orientation
-            masterTl.call(() => {
-                item.mesh.lookAt(0, 0, 0);
-                item.mesh.rotation.z = Math.PI;
-                item._cylinderData.originalRotation = item.mesh.rotation.clone();
-            }, null, orbitDelay + 1.7);
+                duration: 1.0,
+                ease: "power2.inOut",
+                delay: delay
+            }, 0.8);
         });
         
-        // Phase 3: Complete rotation to final state with a slight tilt
+        // Animate container rotation for that "swing" effect
         masterTl.to(this._circleContainer.rotation, {
-            x: 0,
-            y: 0.6, // Start with a slight rotation to indicate draggability
-            z: -0.2,
-            duration: 1.4,
+            y: 0.8, 
+            duration: 2.0,
             ease: "power2.inOut"
-        }, 1.2);
+        }, 0.4);
         
-        // Add a small oscillation to hint at draggability
         masterTl.to(this._circleContainer.rotation, {
-            y: 0.8,
-            duration: 1.2,
-            ease: "power1.inOut",
-            yoyo: true,
-            repeat: 1
-        }, 2.6);
+            y: 0.4, 
+            duration: 1.5,
+            ease: "power1.inOut"
+        }, 2.4);
+        
+        // Fade in cylinder with animation
+        if (this._dragCylinder) {
+            masterTl.to(this._dragCylinder.material, {
+                opacity: 0.25,
+                duration: 1.2,
+                ease: "power2.inOut"
+            }, 0.8);
+        }
         
         return masterTl;
     }
@@ -1856,57 +1855,6 @@ updateScrollNumber() {
             yoyo: true,
             repeat: 1
         }, 0);
-    }
-
-    // Add the missing fixMeshOrientation method
-    fixMeshOrientation() {
-        if (!this.imageStore || !this._inCircleView) return;
-        
-        console.log("Fixing mesh orientation for circle view");
-        
-        // Center position for reference
-        const centerPosition = new THREE.Vector3(0, 0, 0);
-        
-        this.imageStore.forEach((item) => {
-            if (!item._cylinderData) return;
-            
-            const angle = item._cylinderData.angle;
-            
-            // Ensure mesh is oriented correctly to face center
-            item.mesh.lookAt(centerPosition);
-            
-            // Rotate to face outward rather than inward
-            item.mesh.rotateY(Math.PI);
-            
-            // Check if in the back half of the circle (needs flipping)
-            if (Math.abs(angle) > Math.PI/2) {
-                if (!item.material._isFlippedForCircle) {
-                    // Flip the texture
-                    const currentTexture = item.material.uniforms.uTexture.value;
-                    if (currentTexture) {
-                        currentTexture.flipY = !currentTexture.flipY;
-                        currentTexture.needsUpdate = true;
-                        
-                        // Track that we've flipped this texture
-                        item.material._isFlippedForCircle = true;
-                        console.log(`Flipped texture for mesh at angle ${angle.toFixed(2)}`);
-                    }
-                }
-            } else {
-                // Make sure front-facing meshes are not flipped
-                if (item.material._isFlippedForCircle) {
-                    const currentTexture = item.material.uniforms.uTexture.value;
-                    if (currentTexture) {
-                        currentTexture.flipY = !currentTexture.flipY;
-                        currentTexture.needsUpdate = true;
-                        delete item.material._isFlippedForCircle;
-                    }
-                }
-            }
-            
-            // Store the original rotation for reference
-            item._cylinderData.originalRotation = item.mesh.rotation.clone();
-        });
     }
 
     // Setup consistent cylinder interactions
