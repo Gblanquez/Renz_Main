@@ -323,19 +323,19 @@ export default class HomeSketch{
             // Keep the timeline moving without calling restoreCarouselScroll yet
             return;
         } 
-        // If coming from circle view, handle that transition
+        // If coming from circle view, handle that transition with stacking effect
         else if (comingFromCircleView) {
-            console.log("Animating from circle to carousel view");
+            console.log("Animating from circle to carousel view with stacking");
             
             // Create a master timeline for coordinated animation
-        const masterTl = gsap.timeline({
-            onComplete: () => {
+            const masterTl = gsap.timeline({
+                onComplete: () => {
                     console.log("Carousel transition complete");
                     
                     // Move meshes back to main scene from circle container
-                if (this._circleContainer) {
-                    while (this._circleContainer.children.length > 0) {
-                        const child = this._circleContainer.children[0];
+                    if (this._circleContainer) {
+                        while (this._circleContainer.children.length > 0) {
+                            const child = this._circleContainer.children[0];
                             // Skip the cylinder wireframe and helper objects
                             if (child !== this._dragCylinder && 
                                 child !== this._ringHelper && 
@@ -348,101 +348,209 @@ export default class HomeSketch{
                                 child.getWorldQuaternion(new THREE.Quaternion().setFromEuler(worldRot));
                                 
                                 // Remove from container and add to scene
-                            this._circleContainer.remove(child);
-                            this.scene.add(child);
-                        } else {
+                                this._circleContainer.remove(child);
+                                this.scene.add(child);
+                            } else {
                                 // Just remove helpers and cylinder
-                            this._circleContainer.remove(child);
+                                this._circleContainer.remove(child);
                             }
                         }
                     }
                     
                     // Re-enable scrolling after animation completes
-                this.restoreCarouselScroll();
-            }
-        });
-        
-            // Return meshes to their original carousel positions
-            this.imageStore.forEach((item, i) => {
-                // Only process if we have original position data
-                if (item._carouselPosition) {
-                    // Reset material side to front only
-                    item.material.side = THREE.FrontSide;
-                    
-                    // Reset any circle-specific shader uniforms
-                    if (item.material.uniforms.uTransitionProgress) {
-                        item.material.uniforms.uTransitionProgress.value = 0;
-                    }
-                    
-                    // Animate position with stagger
-                    masterTl.to(item.mesh.position, {
-                        x: item._carouselPosition.x,
-                        y: item._carouselPosition.y,
-                        z: item._carouselPosition.z,
-                duration: 1.2,
-                        ease: "power2.inOut",
-                        delay: i * 0.05
-            }, 0);
-            
-                    // Animate rotation with stagger 
-                    // Need to reset all rotations, especially Y which was changed for cylinder
-                    masterTl.to(item.mesh.rotation, {
-                        x: item._carouselPosition.rotationX || 0,
-                        y: item._carouselPosition.rotationY || 0,
-                        z: item._carouselPosition.rotationZ || 0,
-                        duration: 1.0,
-                    ease: "power2.inOut",
-                        delay: i * 0.05
-                    }, 0.1);
-                    
-                    // Animate scale with stagger
-                    masterTl.to(item.mesh.scale, {
-                        x: item._carouselPosition.scaleX,
-                        y: item._carouselPosition.scaleY,
-                        z: 1, 
-                    duration: 1.0,
-                    ease: "power1.inOut",
-                        delay: i * 0.05
-                    }, 0.2);
-                    
-                    // Fade back to normal visibility
-                masterTl.to(item.material.uniforms.hoverState, {
-                        value: 0, // Reset to normal carousel state
-                        duration: 0.7,
-                    ease: "power2.inOut",
-                        delay: i * 0.05
-                    }, 0.3);
+                    this.restoreCarouselScroll();
                 }
             });
             
-            // Clean up circle view elements
+            // Clean up circle view elements - fade out cylinder
             if (this._dragCylinder) {
                 masterTl.to(this._dragCylinder.material, {
                     opacity: 0,
                     duration: 0.5,
                     ease: "power1.in",
                     onComplete: () => {
-                        // Clean up the cylinder and its container
-                        if (this._circleContainer) {
-                            if (this._dragCylinder) {
-                                this._circleContainer.remove(this._dragCylinder);
-                                this._dragCylinder.geometry.dispose();
-                                this._dragCylinder.material.dispose();
-                                this._dragCylinder = null;
-                            }
+                        // Clean up the cylinder
+                        if (this._circleContainer && this._dragCylinder) {
+                            this._circleContainer.remove(this._dragCylinder);
+                            this._dragCylinder.geometry.dispose();
+                            this._dragCylinder.material.dispose();
+                            this._dragCylinder = null;
                         }
                     }
                 }, 0);
             }
             
-            // Rotate the circle container back to initial position
+            // Rotate container to neutral position
             if (this._circleContainer) {
-            masterTl.to(this._circleContainer.rotation, {
+                masterTl.to(this._circleContainer.rotation, {
                     y: 0,
                     duration: 1.0,
                     ease: "power2.inOut"
                 }, 0);
             }
+            
+            // Define central stacking point
+            const stackPosition = new THREE.Vector3(0, 30, 0);
+            
+            // PHASE 1: First gather all items to the center stack
+            this.imageStore.forEach((item, index) => {
+                // Only process if we have original position data
+                if (!item._carouselPosition) return;
+                
+                // Calculate timing for gathering
+                const gatherDuration = 0.8;
+                const gatherDelay = index * 0.03;
+                
+                // Store initial position for reference
+                const initialPos = {
+                    x: item.mesh.position.x,
+                    y: item.mesh.position.y,
+                    z: item.mesh.position.z
+                };
+                
+                // Animate to central stack with slight delay based on index
+                masterTl.to(item.mesh.position, {
+                    x: stackPosition.x,
+                    y: stackPosition.y,
+                    z: stackPosition.z,
+                    duration: gatherDuration,
+                    ease: "power2.inOut",
+                    delay: gatherDelay
+                }, 0);
+                
+                // Scale down slightly as items gather
+                masterTl.to(item.mesh.scale, {
+                    x: item._carouselPosition.scaleX * 0.8,
+                    y: item._carouselPosition.scaleY * 0.8,
+                    z: 1,
+                    duration: gatherDuration,
+                    ease: "power2.inOut",
+                    delay: gatherDelay
+                }, 0);
+                
+                // Standardize rotation during gathering
+                masterTl.to(item.mesh.rotation, {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    duration: gatherDuration,
+                    ease: "power2.inOut",
+                    delay: gatherDelay
+                }, 0);
+                
+                // Dim items slightly during gathering
+                masterTl.to(item.material.uniforms.hoverState, {
+                    value: 0.5,
+                    duration: gatherDuration * 0.8,
+                    ease: "power1.inOut",
+                    delay: gatherDelay
+                }, 0);
+            });
+            
+            // Add a brief pause for dramatic effect
+            const pauseDuration = 0.3;
+            
+            // PHASE 2: Fan out to carousel positions with arcs
+            this.imageStore.forEach((item, index) => {
+                // Only process if we have original position data
+                if (!item._carouselPosition) return;
+                
+                // Reset material side to front only
+                item.material.side = THREE.FrontSide;
+                
+                // Reset any circle-specific shader uniforms
+                if (item.material.uniforms.uTransitionProgress) {
+                    item.material.uniforms.uTransitionProgress.value = 0;
+                }
+                
+                // Set up start and end positions
+                const startPos = {
+                    x: stackPosition.x,
+                    y: stackPosition.y,
+                    z: stackPosition.z
+                };
+                
+                const endPos = {
+                    x: item._carouselPosition.x,
+                    y: item._carouselPosition.y,
+                    z: item._carouselPosition.z
+                };
+                
+                // Calculate 3D distance for arc height
+                const distance = Math.sqrt(
+                    Math.pow(endPos.x - startPos.x, 2) + 
+                    Math.pow(endPos.z - startPos.z, 2) +
+                    Math.pow(endPos.y - startPos.y, 2)
+                );
+                
+                // Calculate timing for fan-out
+                const fanOutDuration = 1.2;
+                const fanOutDelay = index * 0.04; // Stagger by index
+                
+                // Timing offset after gather + pause
+                const timeOffset = 0.8 + pauseDuration;
+                
+                // Fan out with 3D arc motion
+                masterTl.to(item.mesh.position, {
+                    duration: fanOutDuration,
+                    ease: "power2.inOut",
+                    delay: fanOutDelay,
+                    onUpdate: function() {
+                        // Get current progress (0 to 1)
+                        const progress = this.progress();
+                        
+                        // Linear interpolation for x and z
+                        item.mesh.position.x = startPos.x + (endPos.x - startPos.x) * progress;
+                        item.mesh.position.z = startPos.z + (endPos.z - startPos.z) * progress;
+                        
+                        // Apply arc motion
+                        const arcHeight = distance * 0.3;
+                        const arcOffset = Math.sin(Math.PI * progress) * arcHeight;
+                        
+                        // Calculate base y-position with linear interpolation
+                        const baseY = startPos.y + (endPos.y - startPos.y) * progress;
+                        
+                        // Apply the arc offset to create the sinc-like motion
+                        item.mesh.position.y = baseY + arcOffset;
+                    }
+                }, timeOffset);
+                
+                // Animate rotation back to carousel state
+                masterTl.to(item.mesh.rotation, {
+                    x: item._carouselPosition.rotationX || 0,
+                    y: item._carouselPosition.rotationY || 0,
+                    z: item._carouselPosition.rotationZ || 0,
+                    duration: fanOutDuration,
+                    ease: "power2.inOut",
+                    delay: fanOutDelay
+                }, timeOffset);
+                
+                // Scale back to original carousel size
+                masterTl.to(item.mesh.scale, {
+                    x: item._carouselPosition.scaleX,
+                    y: item._carouselPosition.scaleY,
+                    z: 1, 
+                    duration: fanOutDuration,
+                    ease: "power1.inOut",
+                    delay: fanOutDelay
+                }, timeOffset);
+                
+                // Enhanced visibility during expansion with a brief flash
+                masterTl.to(item.material.uniforms.hoverState, {
+                    value: 1.1, // Briefly brighter
+                    duration: fanOutDuration * 0.3,
+                    ease: "power1.out",
+                    delay: fanOutDelay
+                }, timeOffset);
+                
+                // Settle back to normal visibility
+                masterTl.to(item.material.uniforms.hoverState, {
+                    value: 0, // Back to carousel normal
+                    duration: fanOutDuration * 0.5,
+                    ease: "power2.out",
+                    delay: fanOutDelay + 0.3
+                }, timeOffset + 0.3);
+            });
             
             // Keep the timeline moving without calling restoreCarouselScroll yet
             return;
@@ -1461,11 +1569,11 @@ updateScrollNumber() {
         }
     }
 
-    // Update switchToCircleView to create a more perfect cylinder layout
+    // Update switchToCircleView to add a 360° rotation during the fan-out phase
     switchToCircleView() {
         if (!this.imageStore) return;
         
-        console.log("Creating perfectly oriented cylinder with improved spacing");
+        console.log("Creating stacked origin expansion with arc transitions and 360° rotation");
         
         // Save original setPosition for later restoration
         if (!this._originalSetPosition) {
@@ -1496,27 +1604,27 @@ updateScrollNumber() {
         
         // Calculate optimal cylinder properties
         const numMeshes = this.imageStore.length;
-        
-        // Keep the smaller radius but add better spacing
-        const radius = 350;
+        const radius = 350; // Keep consistent radius
         
         // IMPORTANT: Create the cylinder visual first to establish reference
         this.createDraggableCylinder(radius);
         
-        // Get average dimensions to ensure consistent sizing and spacing
+        // Get average dimensions for consistent sizing
         const avgWidth = this.imageStore.reduce((sum, item) => sum + item.width, 0) / numMeshes;
         const avgHeight = this.imageStore.reduce((sum, item) => sum + item.height, 0) / numMeshes;
         
-        // CRITICAL: Significantly increase the spacing factor to prevent overlap
-        // This ensures larger gaps between meshes - increased from 1.0 to 1.5
-        const spacingFactor = 1.5; // 150% spacing for smaller radius
+        // Spacing factor for good separation
+        const spacingFactor = 1.5;
         
-        // Calculate the angular spread with increased spacing
+        // Calculate the angular spread with spacing
         const totalAngle = Math.PI * 2; // Complete circle
         const anglePerMesh = totalAngle / (numMeshes * (1 + spacingFactor));
         const spacedAnglePerMesh = anglePerMesh * (1 + spacingFactor);
         
-        // Store current positions for all meshes
+        // Define central stack position (slightly elevated for better visibility)
+        const stackPosition = new THREE.Vector3(0, 30, 0);
+        
+        // Pre-calculation phase - store all target positions and states
         this.imageStore.forEach((item, index) => {
             // Store current carousel position
             item._carouselPosition = {
@@ -1530,7 +1638,7 @@ updateScrollNumber() {
                 rotationZ: item.mesh.rotation.z
             };
             
-            // Calculate evenly spaced angle around circle with increased spacing
+            // Calculate evenly spaced angle around circle
             const angle = index * spacedAnglePerMesh;
             
             // Calculate position on cylinder using angle
@@ -1546,20 +1654,19 @@ updateScrollNumber() {
                 index,
                 isHighlighted: false,
                 originalPosition: new THREE.Vector3(posX, 0, posZ),
-                // Make meshes even smaller to further enhance spacing
                 targetScale: {
-                    x: item.mesh.scale.x * 0.75, // Reduced further from 0.8 to 0.75
-                    y: item.mesh.scale.y * 0.75, // Reduced to match x-scale
+                    x: item.mesh.scale.x * 0.75,
+                    y: item.mesh.scale.y * 0.75,
                     z: 1
                 }
             };
             
-            // IMMEDIATELY move mesh to circle container
+            // IMMEDIATELY move mesh to circle container to avoid flickering
             if (this.scene.children.includes(item.mesh)) {
                 this.scene.remove(item.mesh);
                 this._circleContainer.add(item.mesh);
                 
-                // Set initial position to current position to avoid glitches
+                // Keep the mesh at its current position initially
                 item.mesh.position.set(
                     item._carouselPosition.x, 
                     item._carouselPosition.y, 
@@ -1568,12 +1675,12 @@ updateScrollNumber() {
             }
         });
         
-        // Animation timeline
+        // Create master timeline for the animation sequence
         const masterTl = gsap.timeline({
             onComplete: () => {
-                console.log("Cylinder view complete");
+                console.log("Fan-out animation complete, applying final orientation");
                 
-                // CRITICAL: Apply exact rotation after animation
+                // Apply precise facing-inward rotation after animation completes
                 this.imageStore.forEach((item) => {
                     if (!item._cylinderData) return;
                     
@@ -1593,56 +1700,170 @@ updateScrollNumber() {
             }
         });
         
-        // Animate each mesh into position
+        // Define animation timing constants at this scope level
+        const gatherDuration = 0.8;
+        const pauseDuration = 0.4;
+        const fanOutDuration = 2.0; // Extended duration for the fan-out phase to accommodate rotation
+        
+        // PHASE 1: First gather all items to the center stack
+        // Add a subtle scale down during gathering to make the effect more dramatic
         this.imageStore.forEach((item, index) => {
-            // Use shorter delay for faster animation
-            const delay = 0.03 * index;
+            // Calculate timing for the gathering phase
+            const gatherDelay = index * 0.03; // Small stagger for gathering
             
-            // Position animation with improved easing
+            // Animate to central stack position
             masterTl.to(item.mesh.position, {
-                x: item._cylinderData.originalPosition.x,
-                y: item._cylinderData.originalPosition.y, 
-                z: item._cylinderData.originalPosition.z,
-                duration: 1.2,
-                ease: "power2.out",
-                delay: delay
+                x: stackPosition.x,
+                y: stackPosition.y,
+                z: stackPosition.z,
+                duration: gatherDuration,
+                ease: "power2.inOut",
+                delay: gatherDelay
             }, 0);
             
-            // Approximate rotation during animation
+            // Slightly scale down while gathering
+            masterTl.to(item.mesh.scale, {
+                x: item._cylinderData.targetScale.x * 0.8,
+                y: item._cylinderData.targetScale.y * 0.8,
+                z: 1,
+                duration: gatherDuration,
+                ease: "power2.inOut",
+                delay: gatherDelay
+            }, 0);
+            
+            // Rotate toward center while gathering
+            masterTl.to(item.mesh.rotation, {
+                x: 0,
+                y: 0,
+                z: 0,
+                duration: gatherDuration,
+                ease: "power2.inOut",
+                delay: gatherDelay
+            }, 0);
+            
+            // Fade items slightly during gathering
+            masterTl.to(item.material.uniforms.hoverState, {
+                value: 0.4, // Partially visible
+                duration: gatherDuration * 0.8,
+                ease: "power1.inOut",
+                delay: gatherDelay
+            }, 0);
+        });
+        
+        // PHASE 2: Add 360° rotation to the entire container while fanning out
+        // Reset container rotation to a starting point first (slightly negative to create momentum)
+        masterTl.set(this._circleContainer.rotation, { y: -0.2 }, gatherDuration + pauseDuration * 0.5);
+        
+        // Perform the 360° rotation during the fan-out phase
+        // Using a complete rotation (2*PI radians = 360 degrees)
+        masterTl.to(this._circleContainer.rotation, {
+            y: Math.PI * 2 - 0.2, // Full rotation (minus initial offset)
+            duration: fanOutDuration,
+            ease: "power1.inOut" // Smooth acceleration and deceleration
+        }, gatherDuration + pauseDuration);
+        
+        // PHASE 3: Fan out to cylinder positions with beautiful arcs
+        // Sort items for organized wave spreading
+        const sortedIndices = [...Array(numMeshes).keys()].sort((a, b) => {
+            const angleA = this.imageStore[a]._cylinderData.angle;
+            const angleB = this.imageStore[b]._cylinderData.angle;
+            return angleA - angleB;
+        });
+        
+        // Now animate the fan-out with arcs
+        sortedIndices.forEach((itemIndex, sortedIdx) => {
+            const item = this.imageStore[itemIndex];
+            
+            // Calculate timing for the fan-out phase
+            const delayFactor = sortedIdx / sortedIndices.length;
+            const fanOutDelay = delayFactor * 0.8; // Shorter spread for quicker fan
+            
+            // Timing offset starts after gathering phase + pause
+            const timeOffset = gatherDuration + pauseDuration;
+            
+            // Set up the start position (stack center) and end position (cylinder position)
+            const startPos = {
+                x: stackPosition.x,
+                y: stackPosition.y,
+                z: stackPosition.z
+            };
+            
+            const endPos = {
+                x: item._cylinderData.originalPosition.x,
+                y: 0, // Final y position
+                z: item._cylinderData.originalPosition.z
+            };
+            
+            // Calculate 3D distance for arc height
+            const distance = Math.sqrt(
+                Math.pow(endPos.x - startPos.x, 2) + 
+                Math.pow(endPos.z - startPos.z, 2) +
+                Math.pow(endPos.y - startPos.y, 2)
+            );
+            
+            // Fan-out with 3D arc motion
+            masterTl.to(item.mesh.position, {
+                duration: fanOutDuration,
+                ease: "power2.inOut",
+                delay: fanOutDelay,
+                onUpdate: function() {
+                    // Get current progress (0 to 1)
+                    const progress = this.progress();
+                    
+                    // Linear interpolation for x and z
+                    item.mesh.position.x = startPos.x + (endPos.x - startPos.x) * progress;
+                    item.mesh.position.z = startPos.z + (endPos.z - startPos.z) * progress;
+                    
+                    // Enhanced arc height - higher for more dramatic effect
+                    const arcHeight = distance * 0.35; // Increased height factor
+                    const arcOffset = Math.sin(Math.PI * progress) * arcHeight;
+                    
+                    // Calculate base y-position with linear interpolation
+                    const baseY = startPos.y + (endPos.y - startPos.y) * progress;
+                    
+                    // Apply the arc offset to create the sinc-like motion
+                    item.mesh.position.y = baseY + arcOffset;
+                }
+            }, timeOffset);
+            
+            // Coordinate rotation during fan-out
+            // Note: We don't need to adjust rotation for container rotation since they're parented to the container
             masterTl.to(item.mesh.rotation, {
                 x: 0,
                 y: item._cylinderData.angle,
                 z: 0,
-                duration: 1.0,
-                ease: "power2.out",
-                delay: delay
-            }, 0);
+                duration: fanOutDuration,
+                ease: "power2.inOut",
+                delay: fanOutDelay
+            }, timeOffset);
             
-            // Scale animation - use the target scale we calculated
+            // Scale to final size during fan-out
             masterTl.to(item.mesh.scale, {
                 x: item._cylinderData.targetScale.x,
                 y: item._cylinderData.targetScale.y,
                 z: 1,
-                duration: 1.0,
+                duration: fanOutDuration * 0.8,
                 ease: "back.out(1.2)",
-                delay: delay
-            }, 0.2);
+                delay: fanOutDelay
+            }, timeOffset);
             
-            // Set visibility
+            // Enhance visibility during fan-out for dramatic effect
+            // Start with a flash of brightness
             masterTl.to(item.material.uniforms.hoverState, {
-                value: 0.8,
-                duration: 0.8,
-                ease: "power2.inOut",
-                delay: delay
-            }, 0.4);
+                value: 1.2, // Briefly brighten
+                duration: fanOutDuration * 0.3,
+                ease: "power1.out",
+                delay: fanOutDelay
+            }, timeOffset);
+            
+            // Settle to final visibility
+            masterTl.to(item.material.uniforms.hoverState, {
+                value: 0.8, // Final settled state
+                duration: fanOutDuration * 0.5,
+                ease: "power1.out",
+                delay: fanOutDelay + 0.3
+            }, timeOffset + 0.3);
         });
-        
-        // Add container rotation animation
-        masterTl.to(this._circleContainer.rotation, {
-            y: 0.2,
-            duration: 2.0,
-            ease: "power2.inOut"
-        }, 0.6);
         
         return masterTl;
     }
