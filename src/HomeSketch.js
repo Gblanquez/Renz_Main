@@ -1865,6 +1865,18 @@ updateScrollNumber() {
             }, timeOffset + 0.3);
         });
         
+        // After the gathering phase, but before the fan-out, activate ribbon effect
+        masterTl.call(() => {
+            // Enable ribbon-like deformation effect
+            this.enhanceMeshesWithRibbonEffect();
+        }, null, gatherDuration + pauseDuration * 0.5);
+        
+        // After the gathering phase, activate mesh bending during fan-out
+        masterTl.call(() => {
+            // Enable mesh bending effect
+            this.enhanceArcMotionWithMeshBending();
+        }, null, gatherDuration + pauseDuration * 0.5);
+        
         return masterTl;
     }
 
@@ -2403,6 +2415,220 @@ updateScrollNumber() {
             duration: 0.3,
             ease: "power2.out"
         });
+    }
+
+    // Add this function to enhance meshes with ribbon-like deformation
+    enhanceMeshesWithRibbonEffect() {
+        if (!this.imageStore || !this._inCircleView) return;
+        
+        console.log("Enhancing meshes with ribbon-like deformation");
+        
+        this.imageStore.forEach((item, index) => {
+            // Ensure all required shader uniforms exist
+            if (!item.material.uniforms.uArcProgress) {
+                item.material.uniforms.uArcProgress = { value: 0.0 };
+            }
+            
+            if (!item.material.uniforms.uArcAmplitude) {
+                item.material.uniforms.uArcAmplitude = { value: 0.0 };
+            }
+            
+            if (!item.material.uniforms.uArcDirection) {
+                // Direction vector from center to target position (normalized)
+                const targetPos = item._cylinderData.originalPosition;
+                const dir = new THREE.Vector3(targetPos.x, 0, targetPos.z).normalize();
+                item.material.uniforms.uArcDirection = { value: new THREE.Vector3(dir.x, 0, dir.z) };
+            }
+            
+            if (!item.material.uniforms.uMeshIndex) {
+                item.material.uniforms.uMeshIndex = { value: index };
+            }
+            
+            // Animate the ribbon effect parameters
+            gsap.to(item.material.uniforms.uArcProgress, {
+                value: 1.0,
+                duration: 2.0,
+                ease: "power2.inOut",
+                delay: (index / this.imageStore.length) * 0.8
+            });
+            
+            // Animate the bending amount based on distance to travel
+            const startPos = new THREE.Vector3(0, 30, 0); // Your stack position
+            const endPos = item._cylinderData.originalPosition;
+            const distance = startPos.distanceTo(endPos);
+            
+            gsap.fromTo(item.material.uniforms.uArcAmplitude, 
+                { value: 0 },
+                { 
+                    value: distance * 0.15, // Amplitude proportional to distance
+                    duration: 2.0,
+                    ease: "power1.inOut",
+                    delay: (index / this.imageStore.length) * 0.8,
+                    yoyo: true,
+                    repeat: 1,
+                    repeatDelay: 0
+                }
+            );
+        });
+    }
+
+    // Add this new method to enhance the arc motion with mesh bending
+    enhanceArcMotionWithMeshBending() {
+        if (!this.imageStore || !this._inCircleView) return;
+        
+        console.log("Enhancing arc motion with ribbon-like bending");
+        
+        this.imageStore.forEach((item, index) => {
+            if (!item.mesh || !item.mesh.geometry) return;
+            
+            // Store original geometry if we haven't yet
+            if (!item._originalPositions) {
+                const positionAttribute = item.mesh.geometry.getAttribute('position');
+                item._originalPositions = new Float32Array(positionAttribute.array.length);
+                item._originalPositions.set(positionAttribute.array);
+            }
+            
+            // Calculate path parameters
+            const startPos = new THREE.Vector3(0, 30, 0); // Stack position
+            const endPos = item._cylinderData ? 
+                new THREE.Vector3(
+                    item._cylinderData.originalPosition.x,
+                    0,
+                    item._cylinderData.originalPosition.z
+                ) : new THREE.Vector3(0, 0, 0);
+            
+            // Calculate delay based on index for staggered animation
+            const delay = (index / this.imageStore.length) * 0.8;
+            
+            // Create a tracking object for animation
+            item._bendAnimation = {
+                // Animation progress from 0 to 1
+                progress: 0,
+                // Direction vector for the movement path
+                direction: new THREE.Vector3().subVectors(endPos, startPos).normalize(),
+                // Control point for the arc (raised in the middle)
+                controlPoint: new THREE.Vector3()
+                    .addVectors(startPos, endPos)
+                    .multiplyScalar(0.5)
+                    .add(new THREE.Vector3(0, 40, 0)),
+                // Start and end positions
+                startPos: startPos.clone(),
+                endPos: endPos.clone()
+            };
+            
+            // Animate path progress
+            gsap.to(item._bendAnimation, {
+                progress: 1,
+                duration: 2.0,
+                delay: delay,
+                ease: "power2.inOut",
+                onUpdate: () => {
+                    this.updateRibbonBending(item);
+                },
+                onComplete: () => {
+                    // Cleanup after animation is done
+                    if (item._originalPositions && item.mesh && item.mesh.geometry) {
+                        const positionAttribute = item.mesh.geometry.getAttribute('position');
+                        positionAttribute.array.set(item._originalPositions);
+                        positionAttribute.needsUpdate = true;
+                    }
+                    item._bendAnimation = null;
+                }
+            });
+        });
+    }
+
+    // Calculate position along quadratic bezier curve
+    getBezierPoint(t, p0, p1, p2) {
+        const mt = 1 - t;
+        return new THREE.Vector3(
+            mt * mt * p0.x + 2 * mt * t * p1.x + t * t * p2.x,
+            mt * mt * p0.y + 2 * mt * t * p1.y + t * t * p2.y,
+            mt * mt * p0.z + 2 * mt * t * p1.z + t * t * p2.z
+        );
+    }
+
+    // Calculate tangent vector at point on quadratic bezier curve
+    getBezierTangent(t, p0, p1, p2) {
+        const mt = 1 - t;
+        // Derivative of quadratic bezier
+        const dx = 2 * (mt * (p1.x - p0.x) + t * (p2.x - p1.x));
+        const dy = 2 * (mt * (p1.y - p0.y) + t * (p2.y - p1.y));
+        const dz = 2 * (mt * (p1.z - p0.z) + t * (p2.z - p1.z));
+        
+        // Return normalized tangent vector
+        const tangent = new THREE.Vector3(dx, dy, dz);
+        return tangent.normalize();
+    }
+
+    updateRibbonBending(item) {
+        if (!item.mesh || !item.mesh.geometry || !item._originalPositions || !item._bendAnimation) return;
+        
+        const anim = item._bendAnimation;
+        const geometry = item.mesh.geometry;
+        const positionAttribute = geometry.getAttribute('position');
+        const positions = positionAttribute.array;
+        
+        // Get mesh dimensions
+        const width = item.mesh.scale.x;
+        const height = item.mesh.scale.y;
+        
+        // Get current point along the bezier path
+        const curvePoint = this.getBezierPoint(
+            anim.progress, 
+            anim.startPos, 
+            anim.controlPoint, 
+            anim.endPos
+        );
+        
+        // Get tangent vector at current point (direction of movement)
+        const tangent = this.getBezierTangent(
+            anim.progress, 
+            anim.startPos, 
+            anim.controlPoint, 
+            anim.endPos
+        );
+        
+        // Calculate normal vector (perpendicular to tangent)
+        const up = new THREE.Vector3(0, 1, 0);
+        const normal = new THREE.Vector3().crossVectors(tangent, up).normalize();
+        
+        // Calculate binormal (perpendicular to both tangent and normal)
+        const binormal = new THREE.Vector3().crossVectors(normal, tangent).normalize();
+        
+        // Calculate bending intensity - maximum in the middle of the path
+        const bendIntensity = Math.sin(Math.PI * anim.progress) * 0.3;
+        
+        // Apply the ribbon-like bending to the mesh vertices
+        for (let i = 0; i < positionAttribute.count; i++) {
+            const idx = i * 3;
+            
+            // Get original position
+            const origX = item._originalPositions[idx];
+            const origY = item._originalPositions[idx + 1];
+            const origZ = item._originalPositions[idx + 2];
+            
+            // Normalize position along x-axis (-1 to 1)
+            const normalizedX = origX / width * 2;
+            
+            // Create a smooth bend profile
+            const bendProfile = Math.sin(normalizedX * Math.PI) * bendIntensity;
+            
+            // Apply bending in normal and binormal directions
+            // This creates the ribbon-like deformation along the path
+            const deformedPos = new THREE.Vector3(
+                origX,
+                origY + bendProfile * height * binormal.y,
+                origZ + bendProfile * height * binormal.z
+            );
+            
+            // Store the deformed position
+            positions[idx] = deformedPos.x;
+            positions[idx + 1] = deformedPos.y;
+            positions[idx + 2] = deformedPos.z;
+        }
+        
+        positionAttribute.needsUpdate = true;
     }
 }
 
