@@ -16,6 +16,10 @@ uniform float uCircleAngle;
 uniform float uViewTransition;
 uniform float uMeshIndex; // For sequencing waves
 
+uniform float uArcProgress;      // Progress of the arc animation (0-1)
+uniform float uArcAmplitude;     // How much the mesh should bend
+uniform vec3 uArcDirection;      // Direction of the arc movement
+
 varying vec2 vUv;
 varying vec2 vSize;
 
@@ -41,7 +45,39 @@ void main(){
     // Combine hover and click effects
     newposition.z += hoverEffect + waves;
 
-    // Apply the position offset here, after all other position adjustments
+    // Add arc bending effect
+    if (uArcProgress > 0.0) {
+        // Calculate normalized position along the mesh width
+        float normalizedWidth = position.x / uQuadSize.x;
+        
+        // Create smooth bend profile
+        float bendProfile = sin(normalizedWidth * PI) * uArcAmplitude;
+        
+        // Apply vertical bend based on horizontal position
+        float verticalBend = sin(normalizedWidth * PI) * bendProfile;
+        
+        // Create wave-like motion during transition
+        float waveOffset = sin(normalizedWidth * PI * 2.0 + time * 2.0 + uMeshIndex * 0.5) * 
+                          uArcProgress * min(uArcAmplitude * 0.3, 20.0);
+        
+        // Apply bending in both vertical and horizontal directions
+        newposition.y += verticalBend * uArcProgress;
+        newposition.z += waveOffset;
+        
+        // Add slight twist based on position
+        float twist = normalizedWidth * PI * uArcProgress * 0.15;
+        mat2 rotationMatrix = mat2(
+            cos(twist), -sin(twist),
+            sin(twist), cos(twist)
+        );
+        
+        // Apply twist to YZ coordinates
+        vec2 twistedYZ = rotationMatrix * newposition.yz;
+        newposition.y = twistedYZ.x;
+        newposition.z = twistedYZ.y;
+    }
+
+    // Apply the position offset after all deformations
     newposition += uPositionOffset;
 
     // Calculate the default state

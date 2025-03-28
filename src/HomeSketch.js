@@ -496,22 +496,41 @@ export default class HomeSketch{
                     ease: "power2.inOut",
                     delay: fanOutDelay,
                     onUpdate: function() {
-                        // Get current progress (0 to 1)
                         const progress = this.progress();
                         
-                        // Linear interpolation for x and z
+                        // Update shader uniforms for bending effect
+                        item.material.uniforms.uArcProgress.value = progress;
+                        
+                        // Calculate dynamic amplitude based on distance and progress
+                        const dynamicAmplitude = Math.sin(Math.PI * progress) * (distance * 0.2);
+                        item.material.uniforms.uArcAmplitude.value = dynamicAmplitude;
+                        
+                        // Update arc direction vector
+                        const direction = new THREE.Vector3()
+                            .subVectors(endPos, startPos)
+                            .normalize();
+                        item.material.uniforms.uArcDirection.value = direction;
+                        
+                        // Original position updates with enhanced motion
+                        const arcHeight = distance * 0.45;
+                        const arcOffset = (
+                            Math.sin(Math.PI * progress) * 0.8 + 
+                            Math.sin(Math.PI * progress * 2) * 0.2
+                        ) * arcHeight;
+                        
+                        const depthAmp = distance * 0.4;
+                        const depthOffset = (
+                            Math.sin(Math.PI * progress * 2) * 0.7 + 
+                            Math.sin(Math.PI * progress * 3) * 0.3
+                        ) * depthAmp;
+                        
+                        const forwardPush = Math.sin(Math.PI * progress) * distance * 0.15;
+                        
+                        // Update position with all combined effects
                         item.mesh.position.x = startPos.x + (endPos.x - startPos.x) * progress;
-                        item.mesh.position.z = startPos.z + (endPos.z - startPos.z) * progress;
-                        
-                        // Apply arc motion
-                        const arcHeight = distance * 0.3;
-                        const arcOffset = Math.sin(Math.PI * progress) * arcHeight;
-                        
-                        // Calculate base y-position with linear interpolation
-                        const baseY = startPos.y + (endPos.y - startPos.y) * progress;
-                        
-                        // Apply the arc offset to create the sinc-like motion
-                        item.mesh.position.y = baseY + arcOffset;
+                        item.mesh.position.y = startPos.y + (endPos.y - startPos.y) * progress + arcOffset;
+                        item.mesh.position.z = startPos.z + (endPos.z - startPos.z) * progress + 
+                                              depthOffset + forwardPush;
                     }
                 }, timeOffset);
                 
@@ -545,7 +564,7 @@ export default class HomeSketch{
                 
                 // Settle back to normal visibility
                 masterTl.to(item.material.uniforms.hoverState, {
-                    value: 0, // Back to carousel normal
+                    value: 0.8, // Back to carousel normal
                     duration: fanOutDuration * 0.5,
                     ease: "power2.out",
                     delay: fanOutDelay + 0.3
@@ -1807,22 +1826,41 @@ updateScrollNumber() {
                 ease: "power2.inOut",
                 delay: fanOutDelay,
                 onUpdate: function() {
-                    // Get current progress (0 to 1)
                     const progress = this.progress();
                     
-                    // Linear interpolation for x and z
+                    // Update shader uniforms for bending effect
+                    item.material.uniforms.uArcProgress.value = progress;
+                    
+                    // Calculate dynamic amplitude based on distance and progress
+                    const dynamicAmplitude = Math.sin(Math.PI * progress) * (distance * 0.2);
+                    item.material.uniforms.uArcAmplitude.value = dynamicAmplitude;
+                    
+                    // Update arc direction vector
+                    const direction = new THREE.Vector3()
+                        .subVectors(endPos, startPos)
+                        .normalize();
+                    item.material.uniforms.uArcDirection.value = direction;
+                    
+                    // Original position updates with enhanced motion
+                    const arcHeight = distance * 0.45;
+                    const arcOffset = (
+                        Math.sin(Math.PI * progress) * 0.8 + 
+                        Math.sin(Math.PI * progress * 2) * 0.2
+                    ) * arcHeight;
+                    
+                    const depthAmp = distance * 0.4;
+                    const depthOffset = (
+                        Math.sin(Math.PI * progress * 2) * 0.7 + 
+                        Math.sin(Math.PI * progress * 3) * 0.3
+                    ) * depthAmp;
+                    
+                    const forwardPush = Math.sin(Math.PI * progress) * distance * 0.15;
+                    
+                    // Update position with all combined effects
                     item.mesh.position.x = startPos.x + (endPos.x - startPos.x) * progress;
-                    item.mesh.position.z = startPos.z + (endPos.z - startPos.z) * progress;
-                    
-                    // Enhanced arc height - higher for more dramatic effect
-                    const arcHeight = distance * 0.35; // Increased height factor
-                    const arcOffset = Math.sin(Math.PI * progress) * arcHeight;
-                    
-                    // Calculate base y-position with linear interpolation
-                    const baseY = startPos.y + (endPos.y - startPos.y) * progress;
-                    
-                    // Apply the arc offset to create the sinc-like motion
-                    item.mesh.position.y = baseY + arcOffset;
+                    item.mesh.position.y = startPos.y + (endPos.y - startPos.y) * progress + arcOffset;
+                    item.mesh.position.z = startPos.z + (endPos.z - startPos.z) * progress + 
+                                          depthOffset + forwardPush;
                 }
             }, timeOffset);
             
@@ -1876,6 +1914,13 @@ updateScrollNumber() {
             // Enable mesh bending effect
             this.enhanceArcMotionWithMeshBending();
         }, null, gatherDuration + pauseDuration * 0.5);
+        
+        // Add z-index offset based on index to prevent overlapping
+        this.imageStore.forEach((item, i) => {
+            // Apply a larger z-offset based on index (0.1 instead of 0.01)
+            const zOffset = i * 0.1;
+            item.mesh.position.z += zOffset;
+        });
         
         return masterTl;
     }
@@ -2048,7 +2093,7 @@ updateScrollNumber() {
         this._circleModeMouseMove = (e) => {
             if (!this._inCircleView || !this.imageStore || this._isDragging) {
                 // Skip hover detection if we're dragging
-                return;
+            return;
             }
             
             // Get normalized mouse coordinates
@@ -2476,7 +2521,7 @@ updateScrollNumber() {
     enhanceArcMotionWithMeshBending() {
         if (!this.imageStore || !this._inCircleView) return;
         
-        console.log("Enhancing arc motion with ribbon-like bending");
+        console.log("Enhancing arc motion with dramatic ribbon-like bending");
         
         this.imageStore.forEach((item, index) => {
             if (!item.mesh || !item.mesh.geometry) return;
@@ -2488,8 +2533,8 @@ updateScrollNumber() {
                 item._originalPositions.set(positionAttribute.array);
             }
             
-            // Calculate path parameters
-            const startPos = new THREE.Vector3(0, 30, 0); // Stack position
+            // Calculate more dramatic path parameters
+            const startPos = new THREE.Vector3(0, 30, 0);
             const endPos = item._cylinderData ? 
                 new THREE.Vector3(
                     item._cylinderData.originalPosition.x,
@@ -2497,26 +2542,29 @@ updateScrollNumber() {
                     item._cylinderData.originalPosition.z
                 ) : new THREE.Vector3(0, 0, 0);
             
-            // Calculate delay based on index for staggered animation
-            const delay = (index / this.imageStore.length) * 0.8;
+            // More dramatic delay variation for wave-like effect
+            const delay = (Math.sin(index / this.imageStore.length * Math.PI) * 0.3) + 
+                         (index / this.imageStore.length * 0.5);
             
-            // Create a tracking object for animation
+            // Enhanced depth offset for more dramatic z-movement
+            const depthOffset = Math.sin((index / this.imageStore.length) * Math.PI * 2) * 60;
+            
             item._bendAnimation = {
-                // Animation progress from 0 to 1
                 progress: 0,
-                // Direction vector for the movement path
                 direction: new THREE.Vector3().subVectors(endPos, startPos).normalize(),
-                // Control point for the arc (raised in the middle)
+                // Higher control point for more dramatic arc
                 controlPoint: new THREE.Vector3()
                     .addVectors(startPos, endPos)
                     .multiplyScalar(0.5)
-                    .add(new THREE.Vector3(0, 40, 0)),
-                // Start and end positions
+                    .add(new THREE.Vector3(0, 80, depthOffset)), // Increased height
                 startPos: startPos.clone(),
-                endPos: endPos.clone()
+                endPos: endPos.clone(),
+                // Add parameters for enhanced bending
+                bendIntensity: 0.6 + Math.random() * 0.2, // Random variation in bend amount
+                waveFrequency: 1.5 + Math.random() * 0.5  // Random variation in wave frequency
             };
             
-            // Animate path progress
+            // Animate with more dramatic timing
             gsap.to(item._bendAnimation, {
                 progress: 1,
                 duration: 2.0,
@@ -2526,7 +2574,6 @@ updateScrollNumber() {
                     this.updateRibbonBending(item);
                 },
                 onComplete: () => {
-                    // Cleanup after animation is done
                     if (item._originalPositions && item.mesh && item.mesh.geometry) {
                         const positionAttribute = item.mesh.geometry.getAttribute('position');
                         positionAttribute.array.set(item._originalPositions);
