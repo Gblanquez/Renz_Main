@@ -50,21 +50,24 @@ void main(){
         // Calculate normalized position along the mesh width
         float normalizedWidth = position.x / uQuadSize.x;
         
-        // Create smooth bend profile
+        // Create smooth bend profile with better end behavior
         float bendProfile = sin(normalizedWidth * PI) * uArcAmplitude;
         
         // Apply vertical bend based on horizontal position
         float verticalBend = sin(normalizedWidth * PI) * bendProfile;
         
-        // Create wave-like motion during transition
-        float waveOffset = sin(normalizedWidth * PI * 2.0 + time * 2.0 + uMeshIndex * 0.5) * 
-                          uArcProgress * min(uArcAmplitude * 0.3, 20.0);
+        // Reduce wave effect at very end of transition
+        float waveMultiplier = min(uArcProgress * 2.0, 1.0); // Ramp up quickly and stay at 1.0
         
-        // Apply bending in both vertical and horizontal directions
+        // Create wave-like motion during transition with smoother falloff
+        float waveOffset = sin(normalizedWidth * PI * 2.0 + time * 2.0 + uMeshIndex * 0.5) * 
+                          waveMultiplier * min(uArcAmplitude * 0.3, 20.0);
+        
+        // Apply bending with controlled transition at end
         newposition.y += verticalBend * uArcProgress;
         newposition.z += waveOffset;
         
-        // Add slight twist based on position
+        // Add slight twist based on position, reduced at end
         float twist = normalizedWidth * PI * uArcProgress * 0.15;
         mat2 rotationMatrix = mat2(
             cos(twist), -sin(twist),

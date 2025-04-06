@@ -186,14 +186,94 @@ canvas{
 }
 
 .indexH2{
+    opacity: 0 !important;
+}
+
+.indexP{
+    opacity: 0 !important;
+}
+
+.indexSpan{
+    opacity: 0;
+    /* display: block; */
+}
+
+.indexH2.list{
+    opacity: 1 !important;
+}
+
+.indexP.list{
+    opacity: 1 !important;
+}
+
+.indexSpan.list{
     opacity: 1;
     /* display: block; */
 }
 
-.indexP{
+.content-circle
+{
+    z-index: -1;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    box-sizing: border-box;
+    padding: 3vw;
+    align-items: center;
+}
+
+.t
+{
+    font-size: 8vw;
+    max-width: 12ch;
+    line-height: 0.8;
+    text-align: center;
+}
+
+.cd
+{
+    position: relative;
+    overflow: hidden;
+    margin-top: 14%;
+}
+
+
+.item-circle
+{
+    text-decoration: none;
+    color: #fff;
+    position: absolute;
+    bottom: 26%;
+    width:70%;
+}
+
+.item-circle-info
+{
+    justify-content: space-between;
+    display: flex;
+}
+
+.item-circle-meta
+{
+    display: flex;
+    flex-direction: column;
+}
+
+
+
+.indexH2.circle{
+    opacity: 1 !important;
+}
+
+.indexP.circle{
+    opacity: 1 !important;
+}
+
+.indexSpan.circle{
     opacity: 1;
     /* display: block; */
 }
+
 
 
 .sm {
@@ -315,6 +395,8 @@ canvas{
     box-sizing: border-box;
 }
 
+
+
 .item-list-info
 {
     display: flex;
@@ -322,7 +404,10 @@ canvas{
     gap: 1vw;
     width: 100%;
     justify-content: space-between;
+    
 }
+
+
 .content-list a
 {
     text-decoration: none;

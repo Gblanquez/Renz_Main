@@ -82,6 +82,7 @@ export default class HomeSketch{
 
         // Setup
         this.addObjects()
+        this.CylinderAdd()
         this.setupResize()
         this.resize()
         this.composerPass()
@@ -95,8 +96,57 @@ export default class HomeSketch{
         this._dragInertia = { x: 0, y: 0 };
         this._autoRotate = false;
         this._lastRotationY = 0;
+
+        // Initialize empty registry structure (but not positions yet)
+        this.meshRegistry = {
+          carousel: [],
+          list: [],
+          circle: []
+        };
+      
+        // Add after other initialization in constructor
+        // this.initializeViewSystem();
+
+        // Initialize registry once image store is ready
+        const originalAddObjects = this.addObjects;
+        this.addObjects = (...args) => {
+          // Call the original method
+          originalAddObjects.apply(this, args);
+          
+          // Calculate initial positions for all views
+          if (this.imageStore && this.imageStore.length > 0) {
+            console.log("📊 Calculating initial positions for all views");
+            
+            // Initialize position registries
+            this.positionRegistry.carousel = this.calculateCarouselPositions();
+            this.positionRegistry.list = this.calculateListPositions();
+            this.positionRegistry.circle = this.calculateCirclePositions();
+          }
+        };
+
+        try {
+          // this.cleanupTransitionSystems();
+          // this.initializeSingleTransitionSystem();
+        } catch (error) {
+          console.error("Error initializing transition system:", error);
+          
+          // Fallback to a simple transition method if all else fails
+          this.transitionTo = (targetView) => {
+            console.log(`Simple fallback transition to: ${targetView}`);
+            
+            // Update current view
+            this.currentView = targetView;
+            
+            // Show appropriate content
+            document.querySelector('.content').style.display = targetView === 'carousel' ? 'flex' : 'none';
+            document.querySelector('.content-list').style.display = targetView === 'list' ? 'flex' : 'none';
+            document.querySelector('.content-circle').style.display = targetView === 'circle' ? 'flex' : 'none';
+          };
+        }
+
     }
 
+  
 
     resize() {
         this.width = window.innerWidth;
@@ -162,6 +212,10 @@ export default class HomeSketch{
                 
                 console.log('Switching to circle view');
                 
+                // Determine which view we're coming from BEFORE changing any state flags
+                const comingFromListView = this._inListView || this.isListViewActive;
+                const comingFromCarouselView = !this._inListView && !this._inCircleView;
+                
                 // Hide carousel content
                 const carouselContent = document.querySelector('.content');
                 if (carouselContent) carouselContent.style.display = 'none';
@@ -188,9 +242,11 @@ export default class HomeSketch{
                 this._inCircleView = true;
                 this._inListView = false;
                 this.isList = false;
+                this.isListViewActive = false;
+                this.isCircleViewActive = true;
                 
                 // Animate meshes to circle view
-                this.switchToCircleView();
+                this.switchToCircleView(comingFromListView, comingFromCarouselView);
                 
                 // Update button states
                 firstElements.forEach(el => el.style.pointerEvents = 'auto');
@@ -199,12 +255,15 @@ export default class HomeSketch{
             });
         });
     
-        // Second button now triggers list view (existing code)
+        // Second button now triggers list view
         secondElements.forEach(element => {
             element.addEventListener('click', () => {
                 if (this._inListView) return; // Don't proceed if already in list view
                 
                 console.log('Switching to list view');
+                
+                // Determine which view we're coming from BEFORE changing any state flags
+                const comingFromCircleView = this._inCircleView;
                 
                 // Hide carousel content, show list content
                 document.querySelector('.content').style.display = 'none';
@@ -214,13 +273,21 @@ export default class HomeSketch{
                 const circleContent = document.querySelector('.content-circle');
                 if (circleContent) circleContent.style.display = 'none';
                 
-                // Update view states
+                // Update view states AFTER checking what view we're coming from
                 this._inListView = true;
                 this._inCircleView = false;
                 this.isList = true;
+                this.isListViewActive = true;
+                this.isCircleViewActive = false;
                 
-                // Animate meshes to list view
-                this.switchToListView();
+                // Use the appropriate transition based on where we're coming from
+                if (comingFromCircleView) {
+                    // Coming from circle view - use specialized transition
+                    this.switchFromCircleToListView();
+                } else {
+                    // Coming from carousel view - use standard list transition
+                    this.switchToListView();
+                }
                 
                 // Update button states
                 firstElements.forEach(el => el.style.pointerEvents = 'auto');
@@ -236,6 +303,10 @@ export default class HomeSketch{
                 
                 console.log('Returning to carousel view');
                 
+                // Determine which view we're coming from BEFORE changing any state flags
+                const comingFromListView = this._inListView || this.isListViewActive;
+                const comingFromCircleView = this._inCircleView || this.isCircleViewActive;
+                
                 // Show carousel content, hide other content
                 document.querySelector('.content').style.display = 'inline-flex';
                 document.querySelector('.content-list').style.display = 'none';
@@ -244,13 +315,15 @@ export default class HomeSketch{
                 const circleContent = document.querySelector('.content-circle');
                 if (circleContent) circleContent.style.display = 'none';
                 
-                // Return meshes to original carousel positions
-                this.returnToCarouselView();
-                
                 // Update view states
                 this._inListView = false;
                 this._inCircleView = false;
                 this.isList = false;
+                this.isListViewActive = false;
+                this.isCircleViewActive = false;
+                
+                // Return meshes to original carousel positions, passing the source view explicitly
+                this.returnToCarouselView(comingFromListView, comingFromCircleView);
                 
                 // Update button states
                 firstElements.forEach(el => el.style.pointerEvents = 'none');
@@ -261,71 +334,45 @@ export default class HomeSketch{
     }
 
     // Create an improved returnToCarouselView with smoother animation and texture fixing
-    returnToCarouselView() {
-        // Keep track of the current view we're leaving
-        const comingFromListView = this.isListViewActive;
-        const comingFromCircleView = this._inCircleView;
+    returnToCarouselView(fromListView = null, fromCircleView = null) {
+        // Determine which view we're coming from, using parameters if provided
+        const comingFromListView = fromListView !== null ? fromListView : this.isListViewActive;
+        const comingFromCircleView = fromCircleView !== null ? fromCircleView : this._inCircleView;
+        
+        console.log("Returning to carousel view from " + (comingFromCircleView ? "circle" : "list") + " view");
+        
+        // Hide content-circle HTML
+        document.querySelector('.content-circle').style.display = 'none';
+        
+        // Animate cylinder shrinking
+        if (this.lineCylinder) {
+            gsap.to(this.lineCylinder.scale, {
+                y: 0, // Shrink to 0
+                duration: 0.8,
+                ease: "power2.in",
+                onComplete: () => {
+                    // Hide when animation completes
+                    this.lineCylinder.visible = false;
+                }
+            });
+        }
         
         // Set flags
         this.isListViewActive = false;
         this.isCircleViewActive = false;
+        this._inListView = false;
+        this._inCircleView = false;
         
-        // If coming from list view, handle that transition
-        if (comingFromListView) {
-            console.log("Animating from list to carousel with fast stagger transition");
-            
-            // Create a master timeline for coordinated animation
-            const masterTl = gsap.timeline({
-                onComplete: () => {
-                    console.log("Carousel transition complete");
-                    // Re-enable scrolling after animation completes
-                    this.restoreCarouselScroll();
-                }
-            });
-            
-            // Faster transition with clean stagger - match the timing of the list view animation
-            this.imageStore.forEach((item, i) => {
-                if (item._originalCarouselData) {
-                    // Make items visible as they move (like in the list view animation)
-                    masterTl.to(item.material.uniforms.hoverState, {
-                        value: 0.8, // Moderate visibility
-                        duration: 0.4,
-                        ease: "power1.in",
-                        delay: i * 0.02 // Faster stagger
-                    }, 0);
-                    
-                    // Direct animation to final position with quick stagger
-                    masterTl.to(item.mesh.position, {
-                        x: item._originalCarouselData.x,
-                        y: item._originalCarouselData.y,
-                        z: item._originalCarouselData.z,
-                        duration: 0.8, // Faster animation
-                        ease: "power2.out",
-                        delay: i * 0.04 // Same stagger timing as list view
-                    }, 0.1); // Start after visibility begin
-                    
-                    // Restore original rotation
-                    masterTl.to(item.mesh.rotation, {
-                        z: item._originalCarouselData.rotation || 0,
-                        duration: 0.7, // Slightly faster than position
-                        ease: "power2.out"
-                    }, 0.1 + i * 0.04); // Match position timing
-                    
-                    // Fade back to normal visibility state
-                    masterTl.to(item.material.uniforms.hoverState, {
-                        value: 0, // Back to normal
-                        duration: 0.5,
-                        ease: "power1.out"
-                    }, 0.5 + i * 0.03); // Slightly faster stagger on the way out
-                }
-            });
-            
-            // Keep the timeline moving without calling restoreCarouselScroll yet
-            return;
-        } 
-        // If coming from circle view, handle that transition with stacking effect
-        else if (comingFromCircleView) {
-            console.log("Animating from circle to carousel view with stacking");
+        // Prioritize circle view transition if meshes are in circle container,
+        // even if we detect coming from list view
+        const inCircleContainer = this._circleContainer && 
+                                this._circleContainer.children.length > 0 &&
+                                this.imageStore.some(item => 
+                                    this._circleContainer.children.includes(item.mesh));
+        
+        // If coming from circle view or meshes are in circle container, use circle transition
+        if (comingFromCircleView || inCircleContainer) {
+            console.log("Using direct circle to carousel transition");
             
             // Create a master timeline for coordinated animation
             const masterTl = gsap.timeline({
@@ -392,29 +439,38 @@ export default class HomeSketch{
             // Define central stacking point
             const stackPosition = new THREE.Vector3(0, 30, 0);
             
+            // Define animation timing constants for both phases at the top level
+            const gatherDuration = 0.6;  // Keep the gathering at a reasonable pace
+            const pauseDuration = 0.15;  // Shorter pause (reduced from 0.3)
+            const fanOutDuration = 0.7;  // Faster fan out (reduced from 1.2)
+            
             // PHASE 1: First gather all items to the center stack
             this.imageStore.forEach((item, index) => {
-                // Only process if we have original position data
-                if (!item._carouselPosition) return;
+                // We need carousel position data for the end positions
+                if (!item._carouselPosition) {
+                    // If no carousel position stored, create one based on current positions
+                    item._carouselPosition = {
+                        x: item._originalCarouselData ? item._originalCarouselData.x : item.mesh.position.x,
+                        y: item._originalCarouselData ? item._originalCarouselData.y : item.mesh.position.y,
+                        z: item._originalCarouselData ? item._originalCarouselData.z : item.mesh.position.z,
+                        scaleX: item.mesh.scale.x,
+                        scaleY: item.mesh.scale.y,
+                        rotationX: item.mesh.rotation.x,
+                        rotationY: item.mesh.rotation.y,
+                        rotationZ: item.mesh.rotation.z
+                    };
+                }
                 
-                // Calculate timing for gathering
-                const gatherDuration = 0.8;
+                // Calculate delay for gathering
                 const gatherDelay = index * 0.03;
-                
-                // Store initial position for reference
-                const initialPos = {
-                    x: item.mesh.position.x,
-                    y: item.mesh.position.y,
-                    z: item.mesh.position.z
-                };
                 
                 // Animate to central stack with slight delay based on index
                 masterTl.to(item.mesh.position, {
                     x: stackPosition.x,
                     y: stackPosition.y,
-                    z: stackPosition.z,
+                    z: stackPosition.z + (index * 8.0),
                     duration: gatherDuration,
-                    ease: "power2.inOut",
+                    ease: "power1.inOut",
                     delay: gatherDelay
                 }, 0);
                 
@@ -438,23 +494,13 @@ export default class HomeSketch{
                     delay: gatherDelay
                 }, 0);
                 
-                // Dim items slightly during gathering
-                masterTl.to(item.material.uniforms.hoverState, {
-                    value: 0.5,
-                    duration: gatherDuration * 0.8,
-                    ease: "power1.inOut",
-                    delay: gatherDelay
-                }, 0);
             });
             
-            // Add a brief pause for dramatic effect
-            const pauseDuration = 0.3;
+            // Calculate timeOffset once
+            const timeOffset = gatherDuration + pauseDuration;
             
             // PHASE 2: Fan out to carousel positions with arcs
             this.imageStore.forEach((item, index) => {
-                // Only process if we have original position data
-                if (!item._carouselPosition) return;
-                
                 // Reset material side to front only
                 item.material.side = THREE.FrontSide;
                 
@@ -470,115 +516,105 @@ export default class HomeSketch{
                     z: stackPosition.z
                 };
                 
+                // Determine the target position - use original carousel data if available
+                const targetPos = item._originalCarouselData || item._carouselPosition;
+                
                 const endPos = {
-                    x: item._carouselPosition.x,
-                    y: item._carouselPosition.y,
-                    z: item._carouselPosition.z
+                    x: targetPos.x,
+                    y: targetPos.y,
+                    z: targetPos.z
                 };
                 
-                // Calculate 3D distance for arc height
-                const distance = Math.sqrt(
-                    Math.pow(endPos.x - startPos.x, 2) + 
-                    Math.pow(endPos.z - startPos.z, 2) +
-                    Math.pow(endPos.y - startPos.y, 2)
-                );
+                // Calculate delay for fan-out - reduce the stagger delay for faster overall animation
+                const fanOutDelay = index * 0.025;  // Significantly reduced stagger delay (from 0.04)
                 
-                // Calculate timing for fan-out
-                const fanOutDuration = 1.2;
-                const fanOutDelay = index * 0.04; // Stagger by index
-                
-                // Timing offset after gather + pause
-                const timeOffset = 0.8 + pauseDuration;
-                
-                // Fan out with 3D arc motion
-                masterTl.to(item.mesh.position, {
-                    duration: fanOutDuration,
-                    ease: "power2.inOut",
-                    delay: fanOutDelay,
+                // Fan out with linear motion - use a snappier ease
+                masterTl.to(item.mesh, {
                     onUpdate: function() {
+                        // Get current progress
                         const progress = this.progress();
                         
-                        // Update shader uniforms for bending effect
-                        item.material.uniforms.uArcProgress.value = progress;
-                        
-                        // Calculate dynamic amplitude based on distance and progress
-                        const dynamicAmplitude = Math.sin(Math.PI * progress) * (distance * 0.2);
-                        item.material.uniforms.uArcAmplitude.value = dynamicAmplitude;
-                        
-                        // Update arc direction vector
-                        const direction = new THREE.Vector3()
-                            .subVectors(endPos, startPos)
-                            .normalize();
-                        item.material.uniforms.uArcDirection.value = direction;
-                        
-                        // Original position updates with enhanced motion
-                        const arcHeight = distance * 0.45;
-                        const arcOffset = (
-                            Math.sin(Math.PI * progress) * 0.8 + 
-                            Math.sin(Math.PI * progress * 2) * 0.2
-                        ) * arcHeight;
-                        
-                        const depthAmp = distance * 0.4;
-                        const depthOffset = (
-                            Math.sin(Math.PI * progress * 2) * 0.7 + 
-                            Math.sin(Math.PI * progress * 3) * 0.3
-                        ) * depthAmp;
-                        
-                        const forwardPush = Math.sin(Math.PI * progress) * distance * 0.15;
-                        
-                        // Update position with all combined effects
+                        // Simple linear interpolation
                         item.mesh.position.x = startPos.x + (endPos.x - startPos.x) * progress;
-                        item.mesh.position.y = startPos.y + (endPos.y - startPos.y) * progress + arcOffset;
-                        item.mesh.position.z = startPos.z + (endPos.z - startPos.z) * progress + 
-                                              depthOffset + forwardPush;
-                    }
-                }, timeOffset);
-                
-                // Animate rotation back to carousel state
-                masterTl.to(item.mesh.rotation, {
-                    x: item._carouselPosition.rotationX || 0,
-                    y: item._carouselPosition.rotationY || 0,
-                    z: item._carouselPosition.rotationZ || 0,
+                        item.mesh.position.y = startPos.y + (endPos.y - startPos.y) * progress;
+                        item.mesh.position.z = startPos.z + (endPos.z - startPos.z) * progress;
+                    },
                     duration: fanOutDuration,
-                    ease: "power2.inOut",
+                    ease: "power3.out",  // More acceleration at the beginning for snappier feel
                     delay: fanOutDelay
                 }, timeOffset);
                 
-                // Scale back to original carousel size
+                // Animate rotation back to carousel state - match the faster timing
+                masterTl.to(item.mesh.rotation, {
+                    x: targetPos.rotationX || 0,
+                    y: targetPos.rotationY || 0,
+                    z: targetPos.rotation || targetPos.rotationZ || 0,
+                    duration: fanOutDuration,
+                    ease: "power2.out",  // Snappier ease
+                    delay: fanOutDelay
+                }, timeOffset);
+                
+                // Scale back to original carousel size - match the faster timing
                 masterTl.to(item.mesh.scale, {
-                    x: item._carouselPosition.scaleX,
-                    y: item._carouselPosition.scaleY,
+                    x: targetPos.scale ? targetPos.scale.x : targetPos.scaleX,
+                    y: targetPos.scale ? targetPos.scale.y : targetPos.scaleY,
                     z: 1, 
                     duration: fanOutDuration,
-                    ease: "power1.inOut",
+                    ease: "power2.out",  // Snappier ease
                     delay: fanOutDelay
                 }, timeOffset);
                 
-                // Enhanced visibility during expansion with a brief flash
-                masterTl.to(item.material.uniforms.hoverState, {
-                    value: 1.1, // Briefly brighter
-                    duration: fanOutDuration * 0.3,
-                    ease: "power1.out",
-                    delay: fanOutDelay
-                }, timeOffset);
+
                 
-                // Settle back to normal visibility
-                masterTl.to(item.material.uniforms.hoverState, {
-                    value: 0.8, // Back to carousel normal
-                    duration: fanOutDuration * 0.5,
-                    ease: "power2.out",
-                    delay: fanOutDelay + 0.3
-                }, timeOffset + 0.3);
             });
             
-            // Keep the timeline moving without calling restoreCarouselScroll yet
+            return;
+        } 
+        // If coming from list view, use that transition
+        else if (comingFromListView) {
+            // Use existing list-to-carousel transition code...
+            console.log("Using direct list to carousel transition");
+            
+            // Create a master timeline for coordinated animation
+            const masterTl = gsap.timeline({
+                onComplete: () => {
+                    console.log("Carousel transition complete");
+                    this.restoreCarouselScroll();
+                }
+            });
+            
+            // Use direct animation from list to carousel positions
+            this.imageStore.forEach((item, i) => {
+                if (item._originalCarouselData) {
+
+                    
+                    // Direct animation to final position
+                    masterTl.to(item.mesh.position, {
+                        x: item._originalCarouselData.x,
+                        y: item._originalCarouselData.y,
+                        z: item._originalCarouselData.z,
+                        duration: 0.8,
+                        ease: "power2.out",
+                        delay: i * 0.04
+                    }, 0.1);
+                    
+                    // Restore original rotation
+                    masterTl.to(item.mesh.rotation, {
+                        z: item._originalCarouselData.rotation || 0,
+                        duration: 0.7,
+                        ease: "power2.out"
+                    }, 0.1 + i * 0.04);
+                    
+                    // Fade back to normal
+
+                }
+            });
+            
             return;
         } 
         else {
             // Default animation if not coming from list or circle view
             console.log("No specific transition needed");
-            
-            // Re-enable scrolling and other carousel-specific behavior
             this.restoreCarouselScroll();
         }
     }
@@ -771,11 +807,7 @@ export default class HomeSketch{
                 delay: index * 0.04
             }, 0);
             
-            // Set visibility
-            tl.to(item.material.uniforms.hoverState, {
-                value: index === 0 ? 0.8 : 0.2, // First visible, others dimmed
-                duration: 0.5
-            }, 0.3 + index * 0.04);
+
         });
         
         // Set current visible mesh
@@ -923,11 +955,7 @@ export default class HomeSketch{
                     ease: "power2.out"
                 });
                 
-                // Reset visibility - first item more visible
-                gsap.to(item.material.uniforms.hoverState, {
-                    value: i === 0 ? 0.8 : 0.2,
-                    duration: 0.3
-                });
+
             });
         };
         
@@ -1551,7 +1579,42 @@ updateScrollNumber() {
                 contain: 'content'
             });
         }
+    
     }
+
+
+    CylinderAdd()
+    {
+        // Create geometry with initial height of 0
+        const lineG = new THREE.CylinderGeometry(0.3, 0.3, 0, 32);
+        const lineM = new THREE.MeshPhysicalMaterial({
+            color: 0xd9d9d9,
+            roughness: 0,
+            metalness: 0,
+            emissive: 0xffffff,
+            emissiveIntensity: 1,
+        });
+
+        const line = new THREE.Mesh(lineG, lineM);
+        line.rotation.x = 3;
+        line.position.y = -30;
+        line.position.z = -20;
+        line.scale.y = 0; // Start with zero scale
+        
+        // Add to scene
+        this.scene.add(line);
+        
+        // Store reference for animation
+        this.lineCylinder = line;
+        
+        // Initially hidden
+        this.lineCylinder.visible = false;
+        
+        return line;
+    }
+
+
+
 
     // Improved fixMeshOrientation method to create a perfect cylinder surface effect
     fixMeshOrientation() {
@@ -1594,6 +1657,28 @@ updateScrollNumber() {
         
         console.log("Creating stacked origin expansion with arc transitions and 360° rotation");
         
+        // Show content-circle HTML element
+        document.querySelector('.content-circle').style.display = 'flex';
+        
+        // Make sure we have created our cylinder
+        if (!this.lineCylinder) {
+            this.CylinderAdd();
+        }
+        
+        // Make cylinder visible
+        this.lineCylinder.visible = true;
+        
+        // Animate cylinder growing from 0 to full height
+        gsap.to(this.lineCylinder.scale, {
+            y: 1, // Full scale
+            duration: 1.5,
+            ease: "power2.out",
+            onStart: () => {
+                // Make sure it's visible when animation starts
+                this.lineCylinder.visible = true;
+            }
+        });
+        
         // Save original setPosition for later restoration
         if (!this._originalSetPosition) {
             this._originalSetPosition = this.setPosition;
@@ -1623,22 +1708,33 @@ updateScrollNumber() {
         
         // Calculate optimal cylinder properties
         const numMeshes = this.imageStore.length;
-        const radius = 350; // Keep consistent radius
-        
-        // IMPORTANT: Create the cylinder visual first to establish reference
-        this.createDraggableCylinder(radius);
-        
+
         // Get average dimensions for consistent sizing
         const avgWidth = this.imageStore.reduce((sum, item) => sum + item.width, 0) / numMeshes;
         const avgHeight = this.imageStore.reduce((sum, item) => sum + item.height, 0) / numMeshes;
-        
+
         // Spacing factor for good separation
         const spacingFactor = 1.5;
-        
+
         // Calculate the angular spread with spacing
         const totalAngle = Math.PI * 2; // Complete circle
         const anglePerMesh = totalAngle / (numMeshes * (1 + spacingFactor));
         const spacedAnglePerMesh = anglePerMesh * (1 + spacingFactor);
+
+        // Base radius that looks good for a typical number of meshes
+        const baseRadius = 350;
+
+        // Scale factor based on the number of meshes (square root provides a nice balance)
+        // This means radius grows more slowly as mesh count increases
+        const scaleFactor = Math.sqrt(numMeshes / 10); // Normalized to look good around 10 meshes
+
+        // Calculate final radius with a minimum and maximum
+        const minRadius = 250;
+        const maxRadius = 600;
+        const radius = Math.min(maxRadius, Math.max(minRadius, baseRadius * scaleFactor));
+
+        // IMPORTANT: Create the cylinder visual first to establish reference
+        this.createDraggableCylinder(radius);
         
         // Define central stack position (slightly elevated for better visibility)
         const stackPosition = new THREE.Vector3(0, 30, 0);
@@ -1722,7 +1818,7 @@ updateScrollNumber() {
         // Define animation timing constants at this scope level
         const gatherDuration = 0.8;
         const pauseDuration = 0.4;
-        const fanOutDuration = 2.0; // Extended duration for the fan-out phase to accommodate rotation
+        const fanOutDuration = 1.2; // Extended duration for the fan-out phase to accommodate rotation
         
         // PHASE 1: First gather all items to the center stack
         // Add a subtle scale down during gathering to make the effect more dramatic
@@ -1734,7 +1830,7 @@ updateScrollNumber() {
             masterTl.to(item.mesh.position, {
                 x: stackPosition.x,
                 y: stackPosition.y,
-                z: stackPosition.z,
+                z: stackPosition.z - (index * 5.0),
                 duration: gatherDuration,
                 ease: "power2.inOut",
                 delay: gatherDelay
@@ -1760,13 +1856,6 @@ updateScrollNumber() {
                 delay: gatherDelay
             }, 0);
             
-            // Fade items slightly during gathering
-            masterTl.to(item.material.uniforms.hoverState, {
-                value: 0.4, // Partially visible
-                duration: gatherDuration * 0.8,
-                ease: "power1.inOut",
-                delay: gatherDelay
-            }, 0);
         });
         
         // PHASE 2: Add 360° rotation to the entire container while fanning out
@@ -1821,46 +1910,19 @@ updateScrollNumber() {
             );
             
             // Fan-out with 3D arc motion
-            masterTl.to(item.mesh.position, {
-                duration: fanOutDuration,
-                ease: "power2.inOut",
-                delay: fanOutDelay,
+            masterTl.to(item.mesh, {
+                // other properties remain the same
+                // ...
                 onUpdate: function() {
+                    // Get current progress
                     const progress = this.progress();
                     
-                    // Update shader uniforms for bending effect
-                    item.material.uniforms.uArcProgress.value = progress;
-                    
-                    // Calculate dynamic amplitude based on distance and progress
-                    const dynamicAmplitude = Math.sin(Math.PI * progress) * (distance * 0.2);
-                    item.material.uniforms.uArcAmplitude.value = dynamicAmplitude;
-                    
-                    // Update arc direction vector
-                    const direction = new THREE.Vector3()
-                        .subVectors(endPos, startPos)
-                        .normalize();
-                    item.material.uniforms.uArcDirection.value = direction;
-                    
-                    // Original position updates with enhanced motion
-                    const arcHeight = distance * 0.45;
-                    const arcOffset = (
-                        Math.sin(Math.PI * progress) * 0.8 + 
-                        Math.sin(Math.PI * progress * 2) * 0.2
-                    ) * arcHeight;
-                    
-                    const depthAmp = distance * 0.4;
-                    const depthOffset = (
-                        Math.sin(Math.PI * progress * 2) * 0.7 + 
-                        Math.sin(Math.PI * progress * 3) * 0.3
-                    ) * depthAmp;
-                    
-                    const forwardPush = Math.sin(Math.PI * progress) * distance * 0.15;
-                    
-                    // Update position with all combined effects
+                    // Simple linear interpolation without arc effects
                     item.mesh.position.x = startPos.x + (endPos.x - startPos.x) * progress;
-                    item.mesh.position.y = startPos.y + (endPos.y - startPos.y) * progress + arcOffset;
-                    item.mesh.position.z = startPos.z + (endPos.z - startPos.z) * progress + 
-                                          depthOffset + forwardPush;
+                    item.mesh.position.y = startPos.y + (endPos.y - startPos.y) * progress;
+                    item.mesh.position.z = startPos.z + (endPos.z - startPos.z) * progress;
+                    
+                    // No arcOffset or forwardPush to keep it linear
                 }
             }, timeOffset);
             
@@ -1885,34 +1947,19 @@ updateScrollNumber() {
                 delay: fanOutDelay
             }, timeOffset);
             
-            // Enhance visibility during fan-out for dramatic effect
-            // Start with a flash of brightness
-            masterTl.to(item.material.uniforms.hoverState, {
-                value: 1.2, // Briefly brighten
-                duration: fanOutDuration * 0.3,
-                ease: "power1.out",
-                delay: fanOutDelay
-            }, timeOffset);
-            
-            // Settle to final visibility
-            masterTl.to(item.material.uniforms.hoverState, {
-                value: 0.8, // Final settled state
-                duration: fanOutDuration * 0.5,
-                ease: "power1.out",
-                delay: fanOutDelay + 0.3
-            }, timeOffset + 0.3);
+
         });
         
         // After the gathering phase, but before the fan-out, activate ribbon effect
         masterTl.call(() => {
             // Enable ribbon-like deformation effect
-            this.enhanceMeshesWithRibbonEffect();
+
         }, null, gatherDuration + pauseDuration * 0.5);
         
         // After the gathering phase, activate mesh bending during fan-out
         masterTl.call(() => {
             // Enable mesh bending effect
-            this.enhanceArcMotionWithMeshBending();
+
         }, null, gatherDuration + pauseDuration * 0.5);
         
         // Add z-index offset based on index to prevent overlapping
@@ -1954,7 +2001,7 @@ updateScrollNumber() {
         const cylinderMaterial = new THREE.MeshBasicMaterial({
             color: 0x4da6ff,
             transparent: true,
-            opacity: 0.2, // Even more transparent for a subtler wireframe
+            opacity: 0, // Even more transparent for a subtler wireframe
             wireframe: true,
             wireframeLinewidth: 1.5, // Slightly thinner lines
             side: THREE.DoubleSide,
@@ -2054,7 +2101,7 @@ updateScrollNumber() {
         if (!this._inCircleView || !this.imageStore) return;
         
         // Calculate the front direction in world space
-        const frontDirection = new THREE.Vector3(0, 0, -1);
+        const frontDirection = new THREE.Vector3(0, 0, 1);
         frontDirection.applyQuaternion(this.camera.quaternion);
         
         this.imageStore.forEach(item => {
@@ -2073,14 +2120,7 @@ updateScrollNumber() {
             // More visible if facing camera
             const visibility = 0.3 + Math.max(0, dotProduct) * 0.7;
             
-            // Update visibility if not currently being hovered
-            if (this._hoverIndex !== item._cylinderData.index) {
-                gsap.to(item.material.uniforms.hoverState, {
-                    value: visibility,
-                    duration: 0.2,
-                    ease: "power1.out"
-                });
-            }
+
         });
     }
 
@@ -2172,16 +2212,6 @@ updateScrollNumber() {
         // Initialize with no hover
         this._hoverIndex = null;
         
-        // Set default state for all meshes
-        if (this.imageStore) {
-            this.imageStore.forEach((item, idx) => {
-                // Set neutral state (slightly visible)
-                gsap.to(item.material.uniforms.hoverState, {
-                    value: 0.8,
-                    duration: 0.3
-                });
-            });
-        }
         
         // Add scroll event listener for rotating the cylinder
         this.handleScrollRotation = this.handleScrollRotation.bind(this);
@@ -2250,7 +2280,7 @@ updateScrollNumber() {
                 if (link) {
                     setTimeout(() => {
                         window.location.href = link;
-                    }, 600);
+                    }, 600); // Delay navigation to allow animation to complete
                 }
             }
         });
@@ -2260,15 +2290,7 @@ updateScrollNumber() {
           .to(item.material.uniforms.uCorners.value, { y: 1, duration: 1.1, ease: 'expo.out' }, 0.3)
           .to(item.material.uniforms.uCorners.value, { z: 1, duration: 1.1, ease: 'expo.out' }, 0.2)
           .to(item.material.uniforms.uCorners.value, { w: 1, duration: 1.1, ease: 'expo.out' }, 0.4);
-        
-        // Flash effect
-        tl.to(item.material.uniforms.hoverState, {
-            value: 1.5,
-            duration: 0.3,
-            ease: 'power2.out',
-            yoyo: true,
-            repeat: 1
-        }, 0);
+
     }
 
     // Setup consistent cylinder interactions
@@ -2303,16 +2325,7 @@ updateScrollNumber() {
             // Add a visual indicator for dragging
             document.body.style.cursor = 'grabbing';
             
-            // Highlight the cylinder to indicate dragging
-            if (this._dragCylinder) {
-                gsap.to(this._dragCylinder.material, {
-                    opacity: 0.4,
-                    duration: 0.2
-                });
-            }
-            
             // No longer prevent propagation - allow clicks to pass through
-            // e.stopPropagation(); - REMOVED
         };
         
         this._dragMoveHandler = (e) => {
@@ -2345,14 +2358,6 @@ updateScrollNumber() {
             
             this._isDragging = false;
             document.body.style.cursor = 'auto';
-            
-            // Return cylinder to normal opacity
-            if (this._dragCylinder) {
-                gsap.to(this._dragCylinder.material, {
-                    opacity: 0.3,
-                    duration: 0.3
-                });
-            }
         };
         
         this._dragLeaveHandler = this._dragEndHandler;
@@ -2422,18 +2427,11 @@ updateScrollNumber() {
         
         const item = this.imageStore[index];
         if (!item._cylinderData) return;
-        
-        // Highlight the hovered item
-        gsap.to(item.material.uniforms.hoverState, {
-            value: 1.2, // Increase visibility for hover effect
-            duration: 0.3,
-            ease: "power2.out"
-        });
-        
+          
         // Slightly scale up for emphasis
         gsap.to(item.mesh.scale, {
-            x: item._cylinderData.targetScale.x * 1.05,
-            y: item._cylinderData.targetScale.y * 1.05,
+            x: item._cylinderData.targetScale.x * 0.90,
+            y: item._cylinderData.targetScale.y * 0.90,
             duration: 0.3,
             ease: "back.out(1.5)"
         });
@@ -2445,14 +2443,8 @@ updateScrollNumber() {
         
         const item = this.imageStore[index];
         if (!item._cylinderData) return;
-        
-        // Return to normal visibility
-        gsap.to(item.material.uniforms.hoverState, {
-            value: 0.8, // Back to default visibility in circle view
-            duration: 0.3,
-            ease: "power2.out"
-        });
-        
+
+
         // Return to normal scale
         gsap.to(item.mesh.scale, {
             x: item._cylinderData.targetScale.x,
@@ -2462,228 +2454,185 @@ updateScrollNumber() {
         });
     }
 
-    // Add this function to enhance meshes with ribbon-like deformation
-    enhanceMeshesWithRibbonEffect() {
-        if (!this.imageStore || !this._inCircleView) return;
+    // Add a new method to transition directly from circle view to list view
+    switchFromCircleToListView() {
+        if (!this.imageStore) return;
         
-        console.log("Enhancing meshes with ribbon-like deformation");
+        console.log('coming from circle view');
         
-        this.imageStore.forEach((item, index) => {
-            // Ensure all required shader uniforms exist
-            if (!item.material.uniforms.uArcProgress) {
-                item.material.uniforms.uArcProgress = { value: 0.0 };
-            }
-            
-            if (!item.material.uniforms.uArcAmplitude) {
-                item.material.uniforms.uArcAmplitude = { value: 0.0 };
-            }
-            
-            if (!item.material.uniforms.uArcDirection) {
-                // Direction vector from center to target position (normalized)
-                const targetPos = item._cylinderData.originalPosition;
-                const dir = new THREE.Vector3(targetPos.x, 0, targetPos.z).normalize();
-                item.material.uniforms.uArcDirection = { value: new THREE.Vector3(dir.x, 0, dir.z) };
-            }
-            
-            if (!item.material.uniforms.uMeshIndex) {
-                item.material.uniforms.uMeshIndex = { value: index };
-            }
-            
-            // Animate the ribbon effect parameters
-            gsap.to(item.material.uniforms.uArcProgress, {
-                value: 1.0,
-                duration: 2.0,
-                ease: "power2.inOut",
-                delay: (index / this.imageStore.length) * 0.8
-            });
-            
-            // Animate the bending amount based on distance to travel
-            const startPos = new THREE.Vector3(0, 30, 0); // Your stack position
-            const endPos = item._cylinderData.originalPosition;
-            const distance = startPos.distanceTo(endPos);
-            
-            gsap.fromTo(item.material.uniforms.uArcAmplitude, 
-                { value: 0 },
-                { 
-                    value: distance * 0.15, // Amplitude proportional to distance
-                    duration: 2.0,
-                    ease: "power1.inOut",
-                    delay: (index / this.imageStore.length) * 0.8,
-                    yoyo: true,
-                    repeat: 1,
-                    repeatDelay: 0
-                }
-            );
-        });
-    }
-
-    // Add this new method to enhance the arc motion with mesh bending
-    enhanceArcMotionWithMeshBending() {
-        if (!this.imageStore || !this._inCircleView) return;
+        // Hide circle content, show list content
+        document.querySelector('.content-circle').style.display = 'none';
+        document.querySelector('.content-list').style.display = 'flex';
         
-        console.log("Enhancing arc motion with dramatic ribbon-like bending");
+        // Clean up cylinder events
+        this.cleanupCylinderEvents();
         
-        this.imageStore.forEach((item, index) => {
-            if (!item.mesh || !item.mesh.geometry) return;
-            
-            // Store original geometry if we haven't yet
-            if (!item._originalPositions) {
-                const positionAttribute = item.mesh.geometry.getAttribute('position');
-                item._originalPositions = new Float32Array(positionAttribute.array.length);
-                item._originalPositions.set(positionAttribute.array);
-            }
-            
-            // Calculate more dramatic path parameters
-            const startPos = new THREE.Vector3(0, 30, 0);
-            const endPos = item._cylinderData ? 
-                new THREE.Vector3(
-                    item._cylinderData.originalPosition.x,
-                    0,
-                    item._cylinderData.originalPosition.z
-                ) : new THREE.Vector3(0, 0, 0);
-            
-            // More dramatic delay variation for wave-like effect
-            const delay = (Math.sin(index / this.imageStore.length * Math.PI) * 0.3) + 
-                         (index / this.imageStore.length * 0.5);
-            
-            // Enhanced depth offset for more dramatic z-movement
-            const depthOffset = Math.sin((index / this.imageStore.length) * Math.PI * 2) * 60;
-            
-            item._bendAnimation = {
-                progress: 0,
-                direction: new THREE.Vector3().subVectors(endPos, startPos).normalize(),
-                // Higher control point for more dramatic arc
-                controlPoint: new THREE.Vector3()
-                    .addVectors(startPos, endPos)
-                    .multiplyScalar(0.5)
-                    .add(new THREE.Vector3(0, 80, depthOffset)), // Increased height
-                startPos: startPos.clone(),
-                endPos: endPos.clone(),
-                // Add parameters for enhanced bending
-                bendIntensity: 0.6 + Math.random() * 0.2, // Random variation in bend amount
-                waveFrequency: 1.5 + Math.random() * 0.5  // Random variation in wave frequency
-            };
-            
-            // Animate with more dramatic timing
-            gsap.to(item._bendAnimation, {
-                progress: 1,
-                duration: 2.0,
-                delay: delay,
-                ease: "power2.inOut",
-                onUpdate: () => {
-                    this.updateRibbonBending(item);
-                },
+        // Animate cylinder shrinking
+        if (this.lineCylinder) {
+            gsap.to(this.lineCylinder.scale, {
+                y: 0, // Shrink to 0
+                duration: 0.8,
+                ease: "power2.in",
                 onComplete: () => {
-                    if (item._originalPositions && item.mesh && item.mesh.geometry) {
-                        const positionAttribute = item.mesh.geometry.getAttribute('position');
-                        positionAttribute.array.set(item._originalPositions);
-                        positionAttribute.needsUpdate = true;
-                    }
-                    item._bendAnimation = null;
+                    // Hide when animation completes
+                    this.lineCylinder.visible = false;
                 }
             });
-        });
-    }
-
-    // Calculate position along quadratic bezier curve
-    getBezierPoint(t, p0, p1, p2) {
-        const mt = 1 - t;
-        return new THREE.Vector3(
-            mt * mt * p0.x + 2 * mt * t * p1.x + t * t * p2.x,
-            mt * mt * p0.y + 2 * mt * t * p1.y + t * t * p2.y,
-            mt * mt * p0.z + 2 * mt * t * p1.z + t * t * p2.z
-        );
-    }
-
-    // Calculate tangent vector at point on quadratic bezier curve
-    getBezierTangent(t, p0, p1, p2) {
-        const mt = 1 - t;
-        // Derivative of quadratic bezier
-        const dx = 2 * (mt * (p1.x - p0.x) + t * (p2.x - p1.x));
-        const dy = 2 * (mt * (p1.y - p0.y) + t * (p2.y - p1.y));
-        const dz = 2 * (mt * (p1.z - p0.z) + t * (p2.z - p1.z));
-        
-        // Return normalized tangent vector
-        const tangent = new THREE.Vector3(dx, dy, dz);
-        return tangent.normalize();
-    }
-
-    updateRibbonBending(item) {
-        if (!item.mesh || !item.mesh.geometry || !item._originalPositions || !item._bendAnimation) return;
-        
-        const anim = item._bendAnimation;
-        const geometry = item.mesh.geometry;
-        const positionAttribute = geometry.getAttribute('position');
-        const positions = positionAttribute.array;
-        
-        // Get mesh dimensions
-        const width = item.mesh.scale.x;
-        const height = item.mesh.scale.y;
-        
-        // Get current point along the bezier path
-        const curvePoint = this.getBezierPoint(
-            anim.progress, 
-            anim.startPos, 
-            anim.controlPoint, 
-            anim.endPos
-        );
-        
-        // Get tangent vector at current point (direction of movement)
-        const tangent = this.getBezierTangent(
-            anim.progress, 
-            anim.startPos, 
-            anim.controlPoint, 
-            anim.endPos
-        );
-        
-        // Calculate normal vector (perpendicular to tangent)
-        const up = new THREE.Vector3(0, 1, 0);
-        const normal = new THREE.Vector3().crossVectors(tangent, up).normalize();
-        
-        // Calculate binormal (perpendicular to both tangent and normal)
-        const binormal = new THREE.Vector3().crossVectors(normal, tangent).normalize();
-        
-        // Calculate bending intensity - maximum in the middle of the path
-        const bendIntensity = Math.sin(Math.PI * anim.progress) * 0.3;
-        
-        // Apply the ribbon-like bending to the mesh vertices
-        for (let i = 0; i < positionAttribute.count; i++) {
-            const idx = i * 3;
-            
-            // Get original position
-            const origX = item._originalPositions[idx];
-            const origY = item._originalPositions[idx + 1];
-            const origZ = item._originalPositions[idx + 2];
-            
-            // Normalize position along x-axis (-1 to 1)
-            const normalizedX = origX / width * 2;
-            
-            // Create a smooth bend profile
-            const bendProfile = Math.sin(normalizedX * Math.PI) * bendIntensity;
-            
-            // Apply bending in normal and binormal directions
-            // This creates the ribbon-like deformation along the path
-            const deformedPos = new THREE.Vector3(
-                origX,
-                origY + bendProfile * height * binormal.y,
-                origZ + bendProfile * height * binormal.z
-            );
-            
-            // Store the deformed position
-            positions[idx] = deformedPos.x;
-            positions[idx + 1] = deformedPos.y;
-            positions[idx + 2] = deformedPos.z;
         }
         
-        positionAttribute.needsUpdate = true;
-    }
-}
+        // Create master timeline for the animation sequence
+        const masterTl = gsap.timeline({
+            onComplete: () => {
+                console.log("Circle to list transition complete");
+                
+                // Move meshes back to main scene from circle container
+                if (this._circleContainer) {
+                    while (this._circleContainer.children.length > 0) {
+                        const child = this._circleContainer.children[0];
+                        // Skip the cylinder wireframe and helper objects
+                        if (child !== this._dragCylinder && 
+                            child !== this._ringHelper && 
+                            child !== this._xAxisHelper && 
+                            child !== this._zAxisHelper) {
+                            // Get world position/rotation before removing
+                            const worldPos = new THREE.Vector3();
+                            const worldRot = new THREE.Euler();
+                            child.getWorldPosition(worldPos);
+                            child.getWorldQuaternion(new THREE.Quaternion().setFromEuler(worldRot));
+                            
+                            // Remove from container and add to scene
+                            this._circleContainer.remove(child);
+                            this.scene.add(child);
+                        } else {
+                            // Just remove helpers and cylinder
+                            this._circleContainer.remove(child);
+                        }
+                    }
+                }
+                
+                // Set up list-specific interactions
+                this.setupEnhancedHoverEvents();
+            }
+        });
+        
+        // Clean up circle view elements - fade out drag cylinder
+        if (this._dragCylinder) {
+            masterTl.to(this._dragCylinder.material, {
+                opacity: 0,
+                duration: 0.5,
+                ease: "power1.in",
+                onComplete: () => {
+                    // Clean up the cylinder
+                    if (this._circleContainer && this._dragCylinder) {
+                        this._circleContainer.remove(this._dragCylinder);
+                        this._dragCylinder.geometry.dispose();
+                        this._dragCylinder.material.dispose();
+                        this._dragCylinder = null;
+                    }
+                }
+            }, 0);
+        }
+        
+        // Rotate container to neutral position
+        if (this._circleContainer) {
+            masterTl.to(this._circleContainer.rotation, {
+                y: 0,
+                duration: 1.0,
+                ease: "power2.inOut"
+            }, 0);
+        }
+        
+        // Define central stacking point (similar to returnToCarouselView)
+        const stackPosition = new THREE.Vector3(0, 30, 0);
+        
+        // Define animation timing constants for both phases
+        const gatherDuration = 0.8;
+        const pauseDuration = 0.3;
+        const fanOutDuration = 0.8;
+        
+        // PHASE 1: First gather all items to the center stack (from circle view)
+        this.imageStore.forEach((item, index) => {
+            // Calculate delay for gathering
+            const gatherDelay = index * 0.03;
+            
+            // Animate to central stack with slight delay based on index
+            masterTl.to(item.mesh.position, {
+                x: stackPosition.x,
+                y: stackPosition.y,
+                z: stackPosition.z + (index * 8.0),
+                duration: gatherDuration,
+                ease: "power1.inOut",
+                delay: gatherDelay
+            }, 0);
+            
+            // Scale down slightly as items gather
+            masterTl.to(item.mesh.scale, {
+                x: item.mesh.scale.x * 0.8,
+                y: item.mesh.scale.y * 0.8,
+                z: 1,
+                duration: gatherDuration,
+                ease: "power2.inOut",
+                delay: gatherDelay
+            }, 0);
+            
+            // Standardize rotation during gathering
+            masterTl.to(item.mesh.rotation, {
+                x: 0,
+                y: 0,
+                z: 0,
+                duration: gatherDuration,
+                ease: "power2.inOut",
+                delay: gatherDelay
+            }, 0);
+            
+        });
+        
+        // PHASE 2: Fan out to list view positions (similar to switchToListView)
+        
+        // Calculate center X and position Y that's 10% from bottom of screen (from switchToListView)
+        const centerX = 0;
+        const bottomY = -(this.height / 2) * 0.8; // 10% from bottom
+        const zSpacing = 25; // Increased z-spacing between items
+        
+        // Timing offset after gather + pause
+        const timeOffset = gatherDuration + pauseDuration;
+        
+        // Move all meshes to the list position with staggered timing
+        this.imageStore.forEach((item, index) => {
+            // Store original position for later reference (like in switchToListView)
+            item._originalPosition = {
+                x: item.mesh.position.x,
+                y: item.mesh.position.y,
+                z: item.mesh.position.z
+            };
+            
+            // Calculate delay for fan-out
+            const fanOutDelay = index * 0.04;
+            
+            // Move to bottom-center position with increased z-separation
+            masterTl.to(item.mesh.position, {
+                x: centerX,
+                y: bottomY,
+                z: -index * zSpacing, // Increased z-spacing between items
+                duration: fanOutDuration,
+                ease: "power2.out",
+                delay: fanOutDelay
+            }, timeOffset);
+            
+            // Restore scale to regular size
+            masterTl.to(item.mesh.scale, {
+                x: item.mesh.scale.x / 0.8, // Compensate for the earlier scale down
+                y: item.mesh.scale.y / 0.8,
+                z: 1,
+                duration: fanOutDuration,
+                ease: "power1.inOut",
+                delay: fanOutDelay
+            }, timeOffset);
 
-// window.addEventListener('DOMContentLoaded', () => {
-//     const container = document.getElementById('container');
-//     if (container) {
-//         new HomeSketch({
-//             domElement: container
-//         });
-//     }
-// });
+        });
+        
+        // Set current visible mesh for list view
+        this.currentVisibleMeshIndex = 0;
+    }
+
+}
