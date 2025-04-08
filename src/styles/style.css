@@ -19,6 +19,11 @@ h2,h3,h4,p,span,a{
     line-height: calc(18 / 2300 * 100 * var(--vw));
 }
 
+.h1Wrapper
+{
+    max-width: 60%;
+}
+
 
 body{
     background: #000;
@@ -207,7 +212,7 @@ canvas{
 }
 
 .indexSpan.list{
-    opacity: 1;
+    opacity: 1 !important;
     /* display: block; */
 }
 
@@ -956,4 +961,16 @@ font-weight: 500;
 
 .word-wrap{
     position: relative;
+}
+
+/* Add these rules to your existing CSS */
+[data-barba="container"] {
+    opacity: 0;
+}
+
+.mainText,
+.ab-t,
+.info2,
+.scramble-text {
+    opacity: 0;
 }

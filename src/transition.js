@@ -6,15 +6,12 @@ import { initializeAnimations } from './animation';
 // Create a wrapper around the imported function
 const initializeScroll = (isHorizontal) => {
     const isInsidePage = document.body.classList.contains('b-inside');
-    // Use the expected direction based on current page
     const expectedHorizontal = !isInsidePage;
     
-    // Log if something is trying to initialize with wrong direction
     if (isHorizontal !== expectedHorizontal) {
         log(`Warning: Attempt to initialize scroll with ${isHorizontal ? 'horizontal' : 'vertical'} when page is ${isInsidePage ? 'inside' : 'home'}`);
     }
     
-    // Always use the correct direction for the current page
     return _initializeScroll(expectedHorizontal);
 };
 
@@ -91,7 +88,6 @@ function resetScroll() {
     return new Promise(resolve => {
         log('Resetting scroll instance');
         
-        // Force cleanup of all scroll-related DOM elements
         document.querySelectorAll('[asscroll-container]').forEach(container => {
             container.style.transform = '';
             container.querySelectorAll('.scroll-wrap').forEach(el => {
@@ -99,11 +95,9 @@ function resetScroll() {
             });
         });
         
-        // Destroy the ASScroll instance
         destroyASScrollInstance();
         scroll = null;
         
-        // Wait for next frame to ensure DOM updates before proceeding
         requestAnimationFrame(resolve);
     });
 }
@@ -127,21 +121,43 @@ function updateHistory(url) {
 
 async function handlePageTransition(url) {
     try {
-        // 1. Fade out and remove current content
+        // 1. Fade out current content with animation
         const currentContainer = document.querySelector('[data-barba="container"]');
-        if (!currentContainer) {
-            log('No current container found, proceeding with transition');
-        } else {
-            await fadeElement(currentContainer, {
-                opacity: 0,
-                duration: 0.4,
-                position: 'absolute',
-                width: '100%'
-            });
-            currentContainer.remove(); // Remove immediately after fade
+        const isCurrentInsidePage = document.body.classList.contains('b-inside');
+        
+        log(`Current page is ${isCurrentInsidePage ? 'inside' : 'home'} page`);
+        
+        // Run exit animations based on page type
+        if (currentContainer) {
+            if (isCurrentInsidePage) {
+                // If we're leaving an inside page (like about)
+                log('Running about page exit animation');
+                try {
+                    // Import and run the OutAnimation
+                    const { OutAnimation } = await import('./animation.js');
+                    // Wait for the animation to fully complete
+                    await OutAnimation();
+                    // Add a small buffer to ensure animation renders
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                } catch (error) {
+                    console.error('Failed to run exit animation:', error);
+                    // Fallback to basic fade
+                    await fadeElement(currentContainer, {
+                        opacity: 0,
+                        duration: 0.4
+                    });
+                }
+            } else {
+                // Default fade out for homepage
+                await fadeElement(currentContainer, {
+                    opacity: 0,
+                    duration: 0.4
+                });
+            }
+            currentContainer.remove();
         }
 
-        // 2. Cleanup old sketch and scroll - ensure this is thorough
+        // 2. Cleanup old sketch and scroll
         log('Cleaning up old resources');
         await destroySketch();
         await resetScroll();
@@ -149,7 +165,7 @@ async function handlePageTransition(url) {
         // 3. Ensure wrapper is clean before adding new content
         const wrapper = document.querySelector('[data-barba="wrapper"]');
         if (!wrapper) throw new Error('No wrapper found');
-        wrapper.innerHTML = ''; // Clear all existing content
+        wrapper.innerHTML = '';
 
         // 4. Load and insert new content
         const newDocument = await loadPage(url);
@@ -166,7 +182,7 @@ async function handlePageTransition(url) {
         await new Promise(resolve => {
             setTimeout(() => {
                 requestAnimationFrame(resolve);
-            }, 50); // Small delay to ensure DOM stability
+            }, 50);
         });
         
         const isInsidePage = document.body.classList.contains('b-inside');
@@ -176,7 +192,6 @@ async function handlePageTransition(url) {
         log('Initializing new scroll');
         scroll = initializeScroll(!isInsidePage);
         
-        // Add a safeguard to prevent direction changes
         const scrollDirection = !isInsidePage ? 'horizontal' : 'vertical';
         log(`Locking scroll direction to: ${scrollDirection}`);
         
@@ -186,7 +201,6 @@ async function handlePageTransition(url) {
             if (container) {
                 container.innerHTML = '';
                 
-                // Add this code before creating HomeSketch
                 if (scroll && scroll.params) {
                     Object.defineProperty(scroll.params, 'horizontalScroll', {
                         value: true,
@@ -202,11 +216,19 @@ async function handlePageTransition(url) {
             }
         }
 
-        // 8. Fade in new content
-        await fadeElement(newContainer, { opacity: 1, duration: 0.4 });
+        // 8. Apply appropriate entry animation based on page type
+        if (isInsidePage) {
+            await import('./animation.js').then(module => {
+                setTimeout(() => {
+                    module.initializeAnimations();
+                }, 0);
+            });
+        } else {
+            await fadeElement(newContainer, { opacity: 1, duration: 0.4 });
+        }
+        
         updateHistory(url);
         
-        // One final check to make sure scroll direction is correct
         setTimeout(() => {
             const currentIsInside = document.body.classList.contains('b-inside');
             const shouldBeHorizontal = !currentIsInside;
@@ -214,7 +236,6 @@ async function handlePageTransition(url) {
             if (scroll && scroll.enabled) {
                 log(`Final check: ensuring scroll is ${shouldBeHorizontal ? 'horizontal' : 'vertical'}`);
                 
-                // If we can safely check and find a mismatch, reset scroll
                 if (scroll.params && scroll.params.horizontalScroll !== shouldBeHorizontal) {
                     log('Direction mismatch found, recreating scroll');
                     resetScroll().then(() => {
@@ -222,7 +243,7 @@ async function handlePageTransition(url) {
                     });
                 }
             }
-        }, 500);
+        }, 100);
 
     } catch (error) {
         console.error('Error during transition:', error);
@@ -230,12 +251,10 @@ async function handlePageTransition(url) {
 }
 
 function ensureActiveContainer() {
-    // Deactivate all containers (shouldn't be necessary after wrapper cleanup, but kept for safety)
     document.querySelectorAll('[asscroll-container]').forEach(container => {
         container.setAttribute('data-active', 'false');
     });
 
-    // Activate the current container
     const currentContainer = document.querySelector('[data-barba="container"] [asscroll-container]');
     if (currentContainer) {
         currentContainer.setAttribute('data-active', 'true');
@@ -245,14 +264,12 @@ function ensureActiveContainer() {
 }
 
 export function initializeTransitions() {
-    // Handle browser back/forward
     window.addEventListener('popstate', (event) => {
         if (event.state?.url) {
             handlePageTransition(event.state.url);
         }
     });
 
-    // Handle link clicks
     document.addEventListener('click', (e) => {
         const link = e.target.closest('a');
         if (link && link.href && link.href.startsWith(window.location.origin)) {
@@ -263,16 +280,13 @@ export function initializeTransitions() {
         }
     });
 
-    // Initial setup
     ensureActiveContainer();
     const isInsidePage = document.body.classList.contains('b-inside');
 
-    // Initialize scroll only once
     if (!scroll) {
         scroll = initializeScroll(!isInsidePage);
     }
 
-    // Setup sketch only for homepage
     if (!isInsidePage) {
         const container = document.getElementById('container');
         if (container) {
@@ -283,7 +297,6 @@ export function initializeTransitions() {
         }
     }
 
-    // Add a class observer to ensure scroll direction matches body class
     const bodyClassObserver = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.attributeName === 'class' && scroll) {

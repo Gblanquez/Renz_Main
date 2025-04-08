@@ -14,6 +14,7 @@ import imagesLoaded from 'imagesloaded';
 import { getASScrollInstance, initializeScroll, destroyASScrollInstance } from './smoothScroll';
 
 import { initializeAnimations, OutAnimation, initializeInsideAnimations} from './animation';
+import { listAnime, listOutAnime, workAnime, workOutAnime} from './animation';
 
 
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -196,142 +197,435 @@ export default class HomeSketch{
     }
 
     addClickEvents() {
-        const secondElements = document.querySelectorAll('.second'); // This is the "List" button
-        const firstElements = document.querySelectorAll('.first');   // This is the "Carousel" button
-        const thirdElements = document.querySelectorAll('.third');   // This is the "Circle" button
-        
-        // Initial state: disable .first, enable .second and .third
-        firstElements.forEach(el => el.style.pointerEvents = 'none');
-        secondElements.forEach(el => el.style.pointerEvents = 'auto');
-        thirdElements.forEach(el => el.style.pointerEvents = 'auto');
-    
-        // Third button triggers circle view
-        thirdElements.forEach(element => {
-            element.addEventListener('click', () => {
-                if (this._inCircleView) return; // Don't proceed if already in circle view
-                
-                console.log('Switching to circle view');
-                
-                // Determine which view we're coming from BEFORE changing any state flags
-                const comingFromListView = this._inListView || this.isListViewActive;
-                const comingFromCarouselView = !this._inListView && !this._inCircleView;
-                
-                // Hide carousel content
-                const carouselContent = document.querySelector('.content');
-                if (carouselContent) carouselContent.style.display = 'none';
-                
-                // Hide list content
-                const listContent = document.querySelector('.content-list');
-                if (listContent) listContent.style.display = 'none';
-                
-                // Show/create circle content
-                let circleContent = document.querySelector('.content-circle');
-                if (!circleContent) {
-                    circleContent = document.createElement('div');
-                    circleContent.className = 'content-circle';
-                    circleContent.style.position = 'absolute';
-                    circleContent.style.top = '0';
-                    circleContent.style.left = '0';
-                    circleContent.style.width = '100%';
-                    circleContent.style.height = '100%';
-                    document.body.appendChild(circleContent);
-                }
-                circleContent.style.display = 'block';
-                
-                // Update view states
-                this._inCircleView = true;
-                this._inListView = false;
-                this.isList = false;
-                this.isListViewActive = false;
-                this.isCircleViewActive = true;
-                
-                // Animate meshes to circle view
-                this.switchToCircleView(comingFromListView, comingFromCarouselView);
-                
-                // Update button states
-                firstElements.forEach(el => el.style.pointerEvents = 'auto');
-                secondElements.forEach(el => el.style.pointerEvents = 'auto');
-                thirdElements.forEach(el => el.style.pointerEvents = 'none');
-            });
-        });
-    
-        // Second button now triggers list view
-        secondElements.forEach(element => {
-            element.addEventListener('click', () => {
-                if (this._inListView) return; // Don't proceed if already in list view
-                
-                console.log('Switching to list view');
-                
-                // Determine which view we're coming from BEFORE changing any state flags
-                const comingFromCircleView = this._inCircleView;
-                
-                // Hide carousel content, show list content
-                document.querySelector('.content').style.display = 'none';
-                document.querySelector('.content-list').style.display = 'flex';
-                
-                // Hide circle content if it exists
-                const circleContent = document.querySelector('.content-circle');
-                if (circleContent) circleContent.style.display = 'none';
-                
-                // Update view states AFTER checking what view we're coming from
-                this._inListView = true;
-                this._inCircleView = false;
-                this.isList = true;
-                this.isListViewActive = true;
-                this.isCircleViewActive = false;
-                
-                // Use the appropriate transition based on where we're coming from
-                if (comingFromCircleView) {
-                    // Coming from circle view - use specialized transition
-                    this.switchFromCircleToListView();
-                } else {
-                    // Coming from carousel view - use standard list transition
-                    this.switchToListView();
-                }
-                
-                // Update button states
-                firstElements.forEach(el => el.style.pointerEvents = 'auto');
-                secondElements.forEach(el => el.style.pointerEvents = 'none');
-                thirdElements.forEach(el => el.style.pointerEvents = 'auto');
-            });
-        });
-        
-        // First button returns to carousel view (updated for all views)
-        firstElements.forEach(element => {
-            element.addEventListener('click', () => {
-                if (!this._inListView && !this._inCircleView) return; // Only proceed if not in carousel view
-                
-                console.log('Returning to carousel view');
-                
-                // Determine which view we're coming from BEFORE changing any state flags
-                const comingFromListView = this._inListView || this.isListViewActive;
-                const comingFromCircleView = this._inCircleView || this.isCircleViewActive;
-                
-                // Show carousel content, hide other content
-                document.querySelector('.content').style.display = 'inline-flex';
-                document.querySelector('.content-list').style.display = 'none';
-                
-                // Hide circle content if it exists
-                const circleContent = document.querySelector('.content-circle');
-                if (circleContent) circleContent.style.display = 'none';
-                
-                // Update view states
-                this._inListView = false;
-                this._inCircleView = false;
-                this.isList = false;
-                this.isListViewActive = false;
-                this.isCircleViewActive = false;
-                
-                // Return meshes to original carousel positions, passing the source view explicitly
-                this.returnToCarouselView(comingFromListView, comingFromCircleView);
-                
-                // Update button states
-                firstElements.forEach(el => el.style.pointerEvents = 'none');
-                secondElements.forEach(el => el.style.pointerEvents = 'auto');
-                thirdElements.forEach(el => el.style.pointerEvents = 'auto');
-            });
-        });
-    }
+      const secondElements = document.querySelectorAll('.second'); // List button
+      const firstElements = document.querySelectorAll('.first');   // Carousel button
+      const thirdElements = document.querySelectorAll('.third');   // Circle button
+      
+      // Initial state: Start in carousel view
+      firstElements.forEach(el => el.style.pointerEvents = 'none');
+      secondElements.forEach(el => el.style.pointerEvents = 'auto');
+      thirdElements.forEach(el => el.style.pointerEvents = 'auto');
+  
+      // To Circle View (Third button)
+      thirdElements.forEach(element => {
+          element.addEventListener('click', () => {
+              if (this._inCircleView) return;
+              
+              console.log('Switching to circle view');
+              
+              const comingFromListView = this._inListView || this.isListViewActive;
+              const comingFromCarouselView = !this._inListView && !this._inCircleView;
+              
+              let circleContent = document.querySelector('.content-circle');
+              if (!circleContent) {
+                  circleContent = document.createElement('div');
+                  circleContent.className = 'content-circle';
+                  circleContent.style.position = 'absolute';
+                  circleContent.style.top = '0';
+                  circleContent.style.left = '0';
+                  circleContent.style.width = '100%';
+                  circleContent.style.height = '100%';
+                  document.body.appendChild(circleContent);
+              }
+              circleContent.style.display = 'block';
+  
+              const masterTl = gsap.timeline({
+                  onComplete: () => {
+                      if (comingFromListView) document.querySelector('.content-list').style.display = 'none';
+                      if (comingFromCarouselView) document.querySelector('.content').style.display = 'none';
+                      this._finalizeCircleViewTransition();
+                      const workInTl = workAnime();
+                      if (workInTl) workInTl.play();
+                  }
+              });
+  
+              if (comingFromListView) {
+                  masterTl.add(listOutAnime(), 0);
+                  masterTl.call(() => {
+                      this.switchToCircleView(comingFromListView, comingFromCarouselView);
+                  }, null, 0);
+              } else {
+                  masterTl.call(() => {
+                      this.switchToCircleView(comingFromListView, comingFromCarouselView);
+                  }, null, 0);
+              }
+          });
+      });
+  
+      // To List View (Second button)
+      secondElements.forEach(element => {
+          element.addEventListener('click', () => {
+              if (this._inListView) return;
+              
+              console.log('Switching to list view');
+              
+              const comingFromCircleView = this._inCircleView;
+              const comingFromCarouselView = !this._inCircleView && !this._inListView;
+              
+              const listContent = document.querySelector('.content-list');
+              if (!listContent) {
+                  console.log('List content not found');
+                  return;
+              }
+              listContent.style.display = 'flex';
+              
+              const masterTl = gsap.timeline({
+                  onComplete: () => {
+                      if (comingFromCircleView) document.querySelector('.content-circle').style.display = 'none';
+                      if (comingFromCarouselView) document.querySelector('.content').style.display = 'none';
+                      this._inListView = true;
+                      this._inCircleView = false;
+                      this.isList = true;
+                      this.isListViewActive = true;
+                      this.isCircleViewActive = false;
+                      firstElements.forEach(el => el.style.pointerEvents = 'auto');
+                      secondElements.forEach(el => el.style.pointerEvents = 'none');
+                      thirdElements.forEach(el => el.style.pointerEvents = 'auto');
+                      const listInTl = listAnime();
+                      if (listInTl) listInTl.play();
+                  }
+              });
+  
+              if (comingFromCircleView) {
+                  masterTl.add(workOutAnime(), 0);
+                  masterTl.call(() => {
+                      this.switchFromCircleToListView();
+                  }, null, 0);
+              } else {
+                  masterTl.call(() => {
+                      this.switchToListView();
+                  }, null, 0);
+              }
+          });
+      });
+      
+      // To Carousel View (First button)
+      firstElements.forEach(element => {
+          element.addEventListener('click', () => {
+              if (!this._inListView && !this._inCircleView) return;
+              
+              console.log('Returning to carousel view');
+              
+              const comingFromListView = this._inListView || this.isListViewActive;
+              const comingFromCircleView = this._inCircleView || this.isCircleViewActive;
+              
+              const masterTl = gsap.timeline({
+                  onComplete: () => {
+                      document.querySelector('.content').style.display = 'inline-flex';
+                      if (comingFromListView) document.querySelector('.content-list').style.display = 'none';
+                      if (comingFromCircleView) document.querySelector('.content-circle').style.display = 'none';
+                      this._proceedToCarouselView(comingFromListView, comingFromCircleView);
+                  }
+              });
+              
+              if (comingFromListView) {
+                  masterTl.add(listOutAnime(), 0);
+                  masterTl.call(() => {
+                      this.returnToCarouselView(comingFromListView, comingFromCircleView);
+                  }, null, 0);
+              } else if (comingFromCircleView) {
+                  masterTl.add(workOutAnime(), 0);
+                  masterTl.call(() => {
+                      this.returnToCarouselView(comingFromListView, comingFromCircleView);
+                  }, null, 0);
+              }
+          });
+      });
+  }
+  
+  // Helper method for Circle transition
+  _proceedToCircleView(comingFromListView, comingFromCarouselView) {
+      const carouselContent = document.querySelector('.content');
+      if (carouselContent) carouselContent.style.display = 'none';
+      
+      let circleContent = document.querySelector('.content-circle');
+      if (!circleContent) {
+          circleContent = document.createElement('div');
+          circleContent.className = 'content-circle';
+          circleContent.style.position = 'absolute';
+          circleContent.style.top = '0';
+          circleContent.style.left = '0';
+          circleContent.style.width = '100%';
+          circleContent.style.height = '100%';
+          document.body.appendChild(circleContent);
+      }
+      circleContent.style.display = 'block';
+      
+      // Update view states
+      this._inCircleView = true;
+      this._inListView = false;
+      this.isList = false;
+      this.isListViewActive = false;
+      this.isCircleViewActive = true;
+      
+      // Animate meshes only if not coming from list view (since it's already handled in timeline)
+      if (!comingFromListView) {
+          this.switchToCircleView(comingFromListView, comingFromCarouselView);
+      }
+      
+      // Update button states
+      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
+  }
+  
+  // New helper method to finalize Circle view transition
+  _finalizeCircleViewTransition() {
+      // Update view states
+      this._inCircleView = true;
+      this._inListView = false;
+      this.isList = false;
+      this.isListViewActive = false;
+      this.isCircleViewActive = true;
+      
+      // Show circle content
+      let circleContent = document.querySelector('.content-circle');
+      if (!circleContent) {
+          circleContent = document.createElement('div');
+          circleContent.className = 'content-circle';
+          circleContent.style.position = 'absolute';
+          circleContent.style.top = '0';
+          circleContent.style.left = '0';
+          circleContent.style.width = '100%';
+          circleContent.style.height = '100%';
+          document.body.appendChild(circleContent);
+      }
+      circleContent.style.display = 'block';
+      
+      // Update button states
+      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
+  }
+  
+  // Helper method for Carousel transition (unchanged)
+  _proceedToCarouselView(comingFromListView, comingFromCircleView) {
+      document.querySelector('.content').style.display = 'inline-flex';
+      const circleContent = document.querySelector('.content-circle');
+      if (circleContent) circleContent.style.display = 'none';
+      
+      // Update view states
+      this._inListView = false;
+      this._inCircleView = false;
+      this.isList = false;
+      this.isListViewActive = false;
+      this.isCircleViewActive = false;
+      
+      // Animate meshes (only called if not coming from list view)
+      if (!comingFromListView) {
+          this.returnToCarouselView(comingFromListView, comingFromCircleView);
+      }
+      
+      // Update button states
+      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'none');
+      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'auto');
+  }
+  
+  // Helper method for Circle transition
+  _proceedToCircleView(comingFromListView, comingFromCarouselView) {
+      const carouselContent = document.querySelector('.content');
+      if (carouselContent) carouselContent.style.display = 'none';
+      
+      let circleContent = document.querySelector('.content-circle');
+      if (!circleContent) {
+          circleContent = document.createElement('div');
+          circleContent.className = 'content-circle';
+          circleContent.style.position = 'absolute';
+          circleContent.style.top = '0';
+          circleContent.style.left = '0';
+          circleContent.style.width = '100%';
+          circleContent.style.height = '100%';
+          document.body.appendChild(circleContent);
+      }
+      circleContent.style.display = 'flex';
+      
+      // Update view states
+      this._inCircleView = true;
+      this._inListView = false;
+      this.isList = false;
+      this.isListViewActive = false;
+      this.isCircleViewActive = true;
+      
+      // Animate meshes only if not coming from list view (since it's already handled in timeline)
+      if (!comingFromListView) {
+          this.switchToCircleView(comingFromListView, comingFromCarouselView);
+      }
+      
+      // Update button states
+      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
+  }
+  
+  // New helper method to finalize Circle view transition
+  _finalizeCircleViewTransition() {
+      // Update view states
+      this._inCircleView = true;
+      this._inListView = false;
+      this.isList = false;
+      this.isListViewActive = false;
+      this.isCircleViewActive = true;
+      
+      // Show circle content
+      let circleContent = document.querySelector('.content-circle');
+      if (!circleContent) {
+          circleContent = document.createElement('div');
+          circleContent.className = 'content-circle';
+          circleContent.style.position = 'absolute';
+          circleContent.style.top = '0';
+          circleContent.style.left = '0';
+          circleContent.style.width = '100%';
+          circleContent.style.height = '100%';
+          document.body.appendChild(circleContent);
+      }
+      circleContent.style.display = 'flex';
+      
+      // Update button states
+      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
+  }
+  
+  // Helper method for Carousel transition (unchanged)
+  _proceedToCarouselView(comingFromListView, comingFromCircleView) {
+      document.querySelector('.content').style.display = 'inline-flex';
+      const circleContent = document.querySelector('.content-circle');
+      if (circleContent) circleContent.style.display = 'none';
+      
+      // Update view states
+      this._inListView = false;
+      this._inCircleView = false;
+      this.isList = false;
+      this.isListViewActive = false;
+      this.isCircleViewActive = false;
+      
+      // Animate meshes (only called if not coming from list view)
+      if (!comingFromListView) {
+          this.returnToCarouselView(comingFromListView, comingFromCircleView);
+      }
+      
+      // Update button states
+      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'none');
+      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'auto');
+  }
+  
+  // Helper method for Circle transition (unchanged)
+  _proceedToCircleView(comingFromListView, comingFromCarouselView) {
+      const carouselContent = document.querySelector('.content');
+      if (carouselContent) carouselContent.style.display = 'none';
+      
+      let circleContent = document.querySelector('.content-circle');
+      if (!circleContent) {
+          circleContent = document.createElement('div');
+          circleContent.className = 'content-circle';
+          circleContent.style.position = 'absolute';
+          circleContent.style.top = '0';
+          circleContent.style.left = '0';
+          circleContent.style.width = '100%';
+          circleContent.style.height = '100%';
+          document.body.appendChild(circleContent);
+      }
+      circleContent.style.display = 'block';
+      
+      // Update view states
+      this._inCircleView = true;
+      this._inListView = false;
+      this.isList = false;
+      this.isListViewActive = false;
+      this.isCircleViewActive = true;
+      
+      // Animate meshes (only called if not coming from list view)
+      if (!comingFromListView) {
+          this.switchToCircleView(comingFromListView, comingFromCarouselView);
+      }
+      
+      // Update button states
+      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
+  }
+  
+  // Helper method for Carousel transition (unchanged)
+  _proceedToCarouselView(comingFromListView, comingFromCircleView) {
+      document.querySelector('.content').style.display = 'inline-flex';
+      const circleContent = document.querySelector('.content-circle');
+      if (circleContent) circleContent.style.display = 'none';
+      
+      // Update view states
+      this._inListView = false;
+      this._inCircleView = false;
+      this.isList = false;
+      this.isListViewActive = false;
+      this.isCircleViewActive = false;
+      
+      // Animate meshes (only called if not coming from list view)
+      if (!comingFromListView) {
+          this.returnToCarouselView(comingFromListView, comingFromCircleView);
+      }
+      
+      // Update button states
+      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'none');
+      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'auto');
+  }
+  
+  // Helper method for Circle transition
+  _proceedToCircleView(comingFromListView, comingFromCarouselView) {
+      const carouselContent = document.querySelector('.content');
+      if (carouselContent) carouselContent.style.display = 'none';
+      
+      let circleContent = document.querySelector('.content-circle');
+      if (!circleContent) {
+          circleContent = document.createElement('div');
+          circleContent.className = 'content-circle';
+          circleContent.style.position = 'absolute';
+          circleContent.style.top = '0';
+          circleContent.style.left = '0';
+          circleContent.style.width = '100%';
+          circleContent.style.height = '100%';
+          document.body.appendChild(circleContent);
+      }
+      circleContent.style.display = 'block';
+      
+      // Update view states
+      this._inCircleView = true;
+      this._inListView = false;
+      this.isList = false;
+      this.isListViewActive = false;
+      this.isCircleViewActive = true;
+      
+      // Animate meshes
+      this.switchToCircleView(comingFromListView, comingFromCarouselView);
+      
+      // Update button states
+      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
+  }
+  
+  // Helper method for Carousel transition
+  _proceedToCarouselView(comingFromListView, comingFromCircleView) {
+      document.querySelector('.content').style.display = 'inline-flex';
+      const circleContent = document.querySelector('.content-circle');
+      if (circleContent) circleContent.style.display = 'none';
+      
+      // Update view states
+      this._inListView = false;
+      this._inCircleView = false;
+      this.isList = false;
+      this.isListViewActive = false;
+      this.isCircleViewActive = false;
+      
+      // Animate meshes (original method preserved)
+      this.returnToCarouselView(comingFromListView, comingFromCircleView);
+      
+      // Update button states
+      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'none');
+      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
+      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'auto');
+  }
 
     // Create an improved returnToCarouselView with smoother animation and texture fixing
     returnToCarouselView(fromListView = null, fromCircleView = null) {
@@ -780,11 +1074,36 @@ export default class HomeSketch{
         
         console.log(`Positioning list view items at X: ${centerX}, Y: ${bottomY} (10% from bottom) with z-spacing: ${zSpacing}`);
         
-        // Create animation timeline
+        // Show list content immediately but hide text elements
+        const listContent = document.querySelector('.content-list');
+        if (listContent) {
+            gsap.set(listContent, { display: 'flex', opacity: 1 });
+            // Hide text elements initially
+            listContent.querySelectorAll('.indexH2.list, .indexP.list, .indexSpan.list').forEach(el => {
+                gsap.set(el, { opacity: 0 });
+            });
+        }
+
         const tl = gsap.timeline({
+            onStart: () => {
+                // Show list content immediately but hide text elements
+                const listContent = document.querySelector('.content-list');
+                if (listContent) {
+                    gsap.set(listContent, { display: 'flex', opacity: 1 });
+                    // Hide text elements initially
+                    listContent.querySelectorAll('.indexH2.list, .indexP.list, .indexSpan.list').forEach(el => {
+                        gsap.set(el, { opacity: 0 });
+                    });
+                }
+
+                listAnime();
+            },
             onComplete: () => {
-                console.log("Stack animation complete - meshes positioned near bottom");
-                this.setupEnhancedHoverEvents();
+                console.log("Stack animation complete");
+
+                // this.setupEnhancedHoverEvents();
+
+
             }
         });
         
@@ -880,14 +1199,7 @@ export default class HomeSketch{
                     ease: fallEase,
                     onComplete: () => animations.delete(fromIndex)
                 });
-                
-                // Dim the item
-                gsap.to(prevItem.material.uniforms.hoverState, {
-                    value: fromIndex === 0 ? 0.8 : 0.2, // First item stays more visible
-                    duration: fallTime * 0.8,
-                    ease: "power1.out"
-                });
-                
+                   
                 // Store the animation
                 animations.set(fromIndex, fallAnim);
             }
@@ -909,20 +1221,6 @@ export default class HomeSketch{
                     onComplete: () => animations.delete(toIndex)
                 });
                 
-                // Full visibility with slight overshoot
-                gsap.to(newItem.material.uniforms.hoverState, {
-                    value: 1.1, // Slightly higher than 1 for a brief "pop"
-                    duration: riseTime * 0.7,
-                    ease: "power2.inOut",
-                    onComplete: () => {
-                        // Settle back to exactly 1
-                        gsap.to(newItem.material.uniforms.hoverState, {
-                            value: 1,
-                            duration: 0.2,
-                            ease: "power1.out"
-                        });
-                    }
-                });
                 
                 // Store the animation
                 animations.set(toIndex, riseAnim);
@@ -964,24 +1262,7 @@ export default class HomeSketch{
             // Make sure we're working with the correct mesh index
             const meshIndex = parseInt(item.dataset.meshIndex || index);
             
-            // Add indicator for debugging (you may want to remove this in production)
-            const indicator = document.createElement('div');
-            indicator.textContent = `${meshIndex + 1}`;
-            indicator.style.position = 'absolute';
-            indicator.style.top = '10px';
-            indicator.style.right = '10px';
-            indicator.style.background = '#FF5722';
-            indicator.style.color = 'white';
-            indicator.style.borderRadius = '50%';
-            indicator.style.width = '24px';
-            indicator.style.height = '24px';
-            indicator.style.display = 'flex';
-            indicator.style.alignItems = 'center';
-            indicator.style.justifyContent = 'center';
-            indicator.style.fontSize = '12px';
-            indicator.style.fontWeight = 'bold';
-            item.style.position = 'relative';
-            item.appendChild(indicator);
+
             
             // Mouse enter - smoothly transition between items
             item.addEventListener('mouseenter', () => {
@@ -1049,14 +1330,6 @@ export default class HomeSketch{
                   .to(meshItem.material.uniforms.uCorners.value, { z: 1, duration: 1.1, ease: 'expo.out' }, 0.2)
                   .to(meshItem.material.uniforms.uCorners.value, { w: 1, duration: 1.1, ease: 'expo.out' }, 0.4);
                 
-                // Add a flash effect to highlight the click
-                tl.to(meshItem.material.uniforms.hoverState, {
-                    value: 1.5, // Increase beyond normal hover for a flash effect
-                    duration: 0.3,
-                    ease: 'power2.out',
-                    yoyo: true,
-                    repeat: 1
-        }, 0);
                 
                 // Add a "pull-out" motion along y-axis to emphasize the click
                 tl.to(meshItem.mesh.position, {
@@ -1150,10 +1423,9 @@ export default class HomeSketch{
                 uQuadSize: { value: new THREE.Vector2(300, 300) },
                 uTextureSize: { value: new THREE.Vector2(100, 100) },
                 uPositionOffset: { value: new THREE.Vector3(0, 0, 0) },
-                uViewTransition: { value: 0 },
-                uCircleRadius: { value: 2.5 },
-                uCircleCenter: { value: new THREE.Vector2(0, 0) },
-                uCircleAngle: { value: 0 }
+                // Add new uniforms for cylinder bending
+                uCylinderBend: { value: 0.0 }, // Start with no bending
+                uCylinderRadius: { value: 350.0 }, // Default radius
             },
             vertexShader: vertex,
             fragmentShader: fragment,
@@ -1397,8 +1669,75 @@ updateScrollNumber() {
         };
     
         this.customPass = new ShaderPass(this.myEffect);
-        this.customPass.renderToScreen = true;
+        // Set renderToScreen to false since we'll add another pass
+        this.customPass.renderToScreen = false;
         this.composer.addPass(this.customPass);
+        
+        // Add a noise effect shader pass
+        this.noiseEffect = {
+            uniforms: {
+                "tDiffuse": { value: null },
+                "time": { value: 0.0 },
+                "noiseIntensity": { value: 0.05 }, // Adjust this for more/less noise
+                "noiseScale": { value: 4.0 }       // Adjust this for noise size
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                varying vec2 vUv;
+                uniform float time;
+                uniform float noiseIntensity;
+                uniform float noiseScale;
+                
+                // Simple pseudo-random function
+                float random(vec2 st) {
+                    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+                }
+                
+                // 2D noise
+                float noise(vec2 st) {
+                    vec2 i = floor(st);
+                    vec2 f = fract(st);
+                    
+                    // Four corners in 2D of a tile
+                    float a = random(i);
+                    float b = random(i + vec2(1.0, 0.0));
+                    float c = random(i + vec2(0.0, 1.0));
+                    float d = random(i + vec2(1.0, 1.0));
+                    
+                    // Smoothstep interpolation
+                    vec2 u = smoothstep(0.0, 1.0, f);
+                    
+                    // Mix 4 corners percentages
+                    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+                }
+                
+                void main() {
+                    // Get the original pixel color
+                    vec4 originalColor = texture2D(tDiffuse, vUv);
+                    
+                    // Generate noise value
+                    vec2 noiseCoord = vUv * noiseScale;
+                    noiseCoord.y += time * 0.2; // Animate noise over time
+                    float noiseValue = noise(noiseCoord) * noiseIntensity;
+                    
+                    // Add noise to the original color
+                    vec4 finalColor = originalColor + vec4(vec3(noiseValue), 0.0);
+                    
+                    gl_FragColor = finalColor;
+                }
+            `
+        };
+        
+        this.noisePass = new ShaderPass(this.noiseEffect);
+        this.noisePass.renderToScreen = true;
+        this.composer.addPass(this.noisePass);
     }
 
     render() {
@@ -1953,7 +2292,13 @@ updateScrollNumber() {
         // After the gathering phase, but before the fan-out, activate ribbon effect
         masterTl.call(() => {
             // Enable ribbon-like deformation effect
-
+            this.imageStore.forEach(item => {
+                if (item.material && item.material.uniforms) {
+                    // Set bending amount (adjust value as needed for best visual)
+                    item.material.uniforms.uCylinderBend.value = 0.8; // 0.8 = 80% bend
+                    item.material.uniforms.uCylinderRadius.value = radius; // Use your calculated radius
+                }
+            });
         }, null, gatherDuration + pauseDuration * 0.5);
         
         // After the gathering phase, activate mesh bending during fan-out

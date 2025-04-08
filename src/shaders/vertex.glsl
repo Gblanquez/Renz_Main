@@ -10,15 +10,13 @@ uniform vec2 hover;
 uniform vec3 uPositionOffset;
 
 uniform float uTransitionProgress;
-uniform float uCircleRadius;
-uniform vec2 uCircleCenter;
-uniform float uCircleAngle;
+
 uniform float uViewTransition;
 uniform float uMeshIndex; // For sequencing waves
 
-uniform float uArcProgress;      // Progress of the arc animation (0-1)
-uniform float uArcAmplitude;     // How much the mesh should bend
-uniform vec3 uArcDirection;      // Direction of the arc movement
+// Add new uniform for cylinder bending
+uniform float uCylinderBend; // 0 = flat, 1 = fully bent
+uniform float uCylinderRadius; // Radius of the cylinder
 
 varying vec2 vUv;
 varying vec2 vSize;
@@ -44,40 +42,30 @@ void main(){
 
     // Combine hover and click effects
     newposition.z += hoverEffect + waves;
-
-    // Add arc bending effect
-    if (uArcProgress > 0.0) {
-        // Calculate normalized position along the mesh width
-        float normalizedWidth = position.x / uQuadSize.x;
+    
+    // Apply cylindrical bending if uCylinderBend > 0
+    if (uCylinderBend > 0.0) {
+        // The x-coordinate determines the position around the cylinder
+        float xPos = position.x; // Local x position (-0.5 to 0.5 on unit geometry)
         
-        // Create smooth bend profile with better end behavior
-        float bendProfile = sin(normalizedWidth * PI) * uArcAmplitude;
+        // Calculate the angle based on x position
+        // We use a portion of the full circle based on uCylinderBend
+        float angle = xPos * 0.8 * uCylinderBend; // 0.8 controls the arc width
         
-        // Apply vertical bend based on horizontal position
-        float verticalBend = sin(normalizedWidth * PI) * bendProfile;
+        // Calculate new z and x positions based on cylindrical mapping
+        float originalZ = newposition.z;
+        float bentZ = originalZ; // Keep original z changes
         
-        // Reduce wave effect at very end of transition
-        float waveMultiplier = min(uArcProgress * 2.0, 1.0); // Ramp up quickly and stay at 1.0
+        // Apply bending: move vertices in z direction based on cylindrical mapping
+        // Use sine to create the curve effect
+        bentZ -= sin(angle * PI) * uCylinderBend * 0.2; // Adjust depth of curve
         
-        // Create wave-like motion during transition with smoother falloff
-        float waveOffset = sin(normalizedWidth * PI * 2.0 + time * 2.0 + uMeshIndex * 0.5) * 
-                          waveMultiplier * min(uArcAmplitude * 0.3, 20.0);
+        // Apply more subtle x adjustment to match cylinder curvature
+        float bentX = xPos - sin(angle * PI) * xPos * uCylinderBend * 0.1;
         
-        // Apply bending with controlled transition at end
-        newposition.y += verticalBend * uArcProgress;
-        newposition.z += waveOffset;
-        
-        // Add slight twist based on position, reduced at end
-        float twist = normalizedWidth * PI * uArcProgress * 0.15;
-        mat2 rotationMatrix = mat2(
-            cos(twist), -sin(twist),
-            sin(twist), cos(twist)
-        );
-        
-        // Apply twist to YZ coordinates
-        vec2 twistedYZ = rotationMatrix * newposition.yz;
-        newposition.y = twistedYZ.x;
-        newposition.z = twistedYZ.y;
+        // Apply the bent coordinates
+        newposition.z = bentZ;
+        newposition.x = bentX;
     }
 
     // Apply the position offset after all deformations
@@ -98,53 +86,7 @@ void main(){
 
     // Set the size based on the cornersProgress
     vSize = mix(uQuadSize, uResolution, cornersProgress);
-
-    // View transition (carousel to circle)
-    if (uViewTransition > 0.0) {
-        // Create smooth transition curve
-        float t = uViewTransition;
-        
-        // Apply easing for smoother transition
-        float smoothT = t * t * (3.0 - 2.0 * t); // Smoothstep easing
-        
-        // Calculate world position for this vertex
-        vec4 worldPos = modelMatrix * vec4(newposition, 1.0);
-        
-        // Calculate the "center stack" position (everything at center)
-        vec4 centerPos = vec4(0.0, 0.0, 0.0, 1.0);
-        
-        // Calculate the final circle position
-        vec4 circlePos = worldPos;
-        circlePos.x = cos(uCircleAngle) * uCircleRadius;
-        circlePos.z = sin(uCircleAngle) * uCircleRadius;
-        circlePos.y = 0.0;
-        
-        // Create wave effect parameters
-        float delay = uMeshIndex * 0.1; // Stagger the animation based on mesh index
-        float waveFreq = 3.0;
-        float waveSpeed = 2.0;
-        
-        // Create a wave function that peaks in the middle of the transition
-        float waveProgress = smoothT; 
-        float waveAmplitude = 0.4 * sin(waveProgress * PI); // Peaks at 0.5
-        
-        // Calculate wave position
-        vec4 wavePos = mix(centerPos, circlePos, smoothT);
-        
-        // Add waves in all dimensions
-        wavePos.x += waveAmplitude * sin(waveFreq * smoothT * PI + delay);
-        wavePos.y += waveAmplitude * cos(waveFreq * smoothT * PI + delay * 1.5);
-        wavePos.z += waveAmplitude * sin(waveFreq * smoothT * PI + delay * 0.7 + time);
-        
-        // Create vertex-specific distortion
-        float vertexNoise = length(vUv - 0.5);
-        wavePos.x += vertexNoise * waveAmplitude * 0.2 * sin(time * 2.0 + smoothT * PI * 3.0);
-        wavePos.y += vertexNoise * waveAmplitude * 0.2 * cos(time * 1.5 + smoothT * PI * 2.0);
-        
-        // Apply transformation to final state, mixing from original state to wave position
-        finalState = mix(modelMatrix * vec4(newposition, 1.0), wavePos, smoothT);
-    }
-
+   
     // Set the final position of the vertex
     gl_Position = projectionMatrix * viewMatrix * finalState;
 }

@@ -19,6 +19,7 @@ export const setVw = () => {
 document.addEventListener('DOMContentLoaded', () => {
     setVw();
     initializeTransitions();
+    initializeAnimations();
 });
 
 // Update --vw on window resize

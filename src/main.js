@@ -1,108 +1,161 @@
-import './styles/style.css'
+import './styles/style.css';
 import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import Lenis from '@studio-freight/lenis';
-import { each } from 'jquery';
-import lottie from 'lottie-web';
-import SplitType from 'split-type'
+import SplitType from 'split-type';
 
-// import customRender from './renders/Load';
-
-
-//Velocity Animation
-
-
-
-
-// Utility scramble function
+// Utility scramble function (unchanged)
 function scrambleText(element, finalText, duration = 0.5, speed = 0.02) {
-    const chars = '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde'
-    let frame = 0
-    const totalFrames = duration * 1000 / (speed * 1000) // Convert to milliseconds
-    let isAnimating = true
+    const chars = '#@%!%&$*()fghijklmnopq-=+{}]^?><rstuvwxyzabcde';
+    let frame = 0;
+    const totalFrames = duration * 1000 / (speed * 1000); // Convert to milliseconds
+    let isAnimating = true;
 
     const update = () => {
-        if (!isAnimating) return
+        if (!isAnimating) return;
 
-        frame++
-        let progress = frame / totalFrames
-        let newText = ''
+        frame++;
+        let progress = frame / totalFrames;
+        let newText = '';
         
         for (let i = 0; i < finalText.length; i++) {
             if (progress >= 1) {
-                newText += finalText[i]
+                newText += finalText[i];
             } else {
-                newText += chars[Math.floor(Math.random() * chars.length)]
+                newText += chars[Math.floor(Math.random() * chars.length)];
             }
         }
         
-        element.textContent = newText
+        element.textContent = newText;
 
         if (progress < 1) {
-            requestAnimationFrame(update)
+            requestAnimationFrame(update);
         }
-    }
+    };
 
     return {
         start: () => {
-            isAnimating = true
-            frame = 0
-            requestAnimationFrame(update)
+            isAnimating = true;
+            frame = 0;
+            requestAnimationFrame(update);
         },
         stop: () => {
-            isAnimating = false
-            element.textContent = finalText
+            isAnimating = false;
+            element.textContent = finalText;
         }
-    }
+    };
 }
 
 function addScrambleAnimations() {
-    const selector = '.connect-item a, .social-links a, .social-links-bottom-left a, .navbar-links a'
-    const connectLinks = document.querySelectorAll(selector)
+    // Base selector for other links
+    const baseSelector = '.connect-item a, .social-links a, .social-links-bottom-left a, .navbar-links a';
+    const baseLinks = document.querySelectorAll(baseSelector);
 
-    connectLinks.forEach(link => {
-        const originalText = link.textContent
-        const scrambler = scrambleText(link, originalText)
+    // Handle base links (unchanged)
+    baseLinks.forEach(link => {
+        const originalText = link.textContent;
+        const scrambler = scrambleText(link, originalText);
 
         link.addEventListener('mouseenter', () => {
-            scrambler.start()
-        })
+            scrambler.start();
+        });
 
         link.addEventListener('mouseleave', () => {
-            scrambler.stop()
-        })
-    })
+            scrambler.stop();
+        });
+    });
+
+    // Handle .item-list links with multiple text elements
+    const itemListLinks = document.querySelectorAll('.content-list .item-list');
+    itemListLinks.forEach(link => {
+        // Create scramblers for each text element
+        const textElements = {
+            title: {
+                element: link.querySelector('.indexH2'),
+                scrambler: null
+            },
+            description: {
+                element: link.querySelector('.indexP'),
+                scrambler: null
+            },
+            spans: Array.from(link.querySelectorAll('.indexSpan')).map(span => ({
+                element: span,
+                scrambler: null
+            }))
+        };
+
+        // Initialize scramblers
+        if (textElements.title.element) {
+            textElements.title.scrambler = scrambleText(
+                textElements.title.element, 
+                textElements.title.element.textContent,
+                0.4,
+                0.02
+            );
+        }
+
+        if (textElements.description.element) {
+            textElements.description.scrambler = scrambleText(
+                textElements.description.element, 
+                textElements.description.element.textContent,
+                0.5,
+                0.02
+            );
+        }
+
+        textElements.spans.forEach(span => {
+            if (span.element) {
+                span.scrambler = scrambleText(
+                    span.element, 
+                    span.element.textContent,
+                    0.3,
+                    0.02
+                );
+            }
+        });
+
+        // Add hover listeners that check for animating class
+        link.addEventListener('mouseenter', () => {
+            // Only trigger hover effects if not animating
+            if (!document.querySelector('.content-list.animating')) {
+                if (textElements.title.scrambler) textElements.title.scrambler.start();
+                if (textElements.description.scrambler) {
+                    setTimeout(() => textElements.description.scrambler.start(), 50);
+                }
+                textElements.spans.forEach((span, index) => {
+                    if (span.scrambler) {
+                        setTimeout(() => span.scrambler.start(), index * 30);
+                    }
+                });
+            }
+        });
+
+        link.addEventListener('mouseleave', () => {
+            // Always stop animations on mouseleave
+            if (textElements.title.scrambler) textElements.title.scrambler.stop();
+            if (textElements.description.scrambler) textElements.description.scrambler.stop();
+            textElements.spans.forEach(span => {
+                if (span.scrambler) span.scrambler.stop();
+            });
+        });
+    });
 }
 
-// Call the function to apply the animations
-addScrambleAnimations();
+// Initialize animations when DOM is ready and after transitions
+document.addEventListener('DOMContentLoaded', () => {
+    addScrambleAnimations();
+});
 
+// Re-initialize after list view transition
+// This should be called after setupEnhancedHoverEvents in HomeSketch.js
+export function reinitializeListAnimations() {
+    addScrambleAnimations();
+}
 
-
-
-// document.addEventListener('DOMContentLoaded', () => {
-//     const textarea = document.getElementById('project-idea');
-
-//     // Function to adjust height based on content
-//     function adjustHeight() {
-//         textarea.style.height = 'auto'; // Reset height to recalculate
-//         textarea.style.height = `${textarea.scrollHeight}px`; // Set to content height
-//     }
-
-//     // Adjust height on input
-//     textarea.addEventListener('input', adjustHeight);
-
-//     // Initial adjustment in case placeholder affects height
-//     adjustHeight();
-// });
-
-
-
-
-
-
-
-
-
-
-
+// Export a function to reset all text content
+export function resetAllListText() {
+    const itemListLinks = document.querySelectorAll('.content-list .item-list');
+    itemListLinks.forEach(link => {
+        if (typeof link._resetTextContent === 'function') {
+            link._resetTextContent();
+        }
+    });
+}
