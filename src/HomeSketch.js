@@ -83,7 +83,6 @@ export default class HomeSketch{
 
         // Setup
         this.addObjects()
-        this.CylinderAdd()
         this.setupResize()
         this.resize()
         this.composerPass()
@@ -333,130 +332,7 @@ export default class HomeSketch{
       });
   }
   
-  // Helper method for Circle transition
-  _proceedToCircleView(comingFromListView, comingFromCarouselView) {
-      const carouselContent = document.querySelector('.content');
-      if (carouselContent) carouselContent.style.display = 'none';
-      
-      let circleContent = document.querySelector('.content-circle');
-      if (!circleContent) {
-          circleContent = document.createElement('div');
-          circleContent.className = 'content-circle';
-          circleContent.style.position = 'absolute';
-          circleContent.style.top = '0';
-          circleContent.style.left = '0';
-          circleContent.style.width = '100%';
-          circleContent.style.height = '100%';
-          document.body.appendChild(circleContent);
-      }
-      circleContent.style.display = 'block';
-      
-      // Update view states
-      this._inCircleView = true;
-      this._inListView = false;
-      this.isList = false;
-      this.isListViewActive = false;
-      this.isCircleViewActive = true;
-      
-      // Animate meshes only if not coming from list view (since it's already handled in timeline)
-      if (!comingFromListView) {
-          this.switchToCircleView(comingFromListView, comingFromCarouselView);
-      }
-      
-      // Update button states
-      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
-  }
-  
-  // New helper method to finalize Circle view transition
-  _finalizeCircleViewTransition() {
-      // Update view states
-      this._inCircleView = true;
-      this._inListView = false;
-      this.isList = false;
-      this.isListViewActive = false;
-      this.isCircleViewActive = true;
-      
-      // Show circle content
-      let circleContent = document.querySelector('.content-circle');
-      if (!circleContent) {
-          circleContent = document.createElement('div');
-          circleContent.className = 'content-circle';
-          circleContent.style.position = 'absolute';
-          circleContent.style.top = '0';
-          circleContent.style.left = '0';
-          circleContent.style.width = '100%';
-          circleContent.style.height = '100%';
-          document.body.appendChild(circleContent);
-      }
-      circleContent.style.display = 'block';
-      
-      // Update button states
-      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
-  }
-  
-  // Helper method for Carousel transition (unchanged)
-  _proceedToCarouselView(comingFromListView, comingFromCircleView) {
-      document.querySelector('.content').style.display = 'inline-flex';
-      const circleContent = document.querySelector('.content-circle');
-      if (circleContent) circleContent.style.display = 'none';
-      
-      // Update view states
-      this._inListView = false;
-      this._inCircleView = false;
-      this.isList = false;
-      this.isListViewActive = false;
-      this.isCircleViewActive = false;
-      
-      // Animate meshes (only called if not coming from list view)
-      if (!comingFromListView) {
-          this.returnToCarouselView(comingFromListView, comingFromCircleView);
-      }
-      
-      // Update button states
-      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'none');
-      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'auto');
-  }
-  
-  // Helper method for Circle transition
-  _proceedToCircleView(comingFromListView, comingFromCarouselView) {
-      const carouselContent = document.querySelector('.content');
-      if (carouselContent) carouselContent.style.display = 'none';
-      
-      let circleContent = document.querySelector('.content-circle');
-      if (!circleContent) {
-          circleContent = document.createElement('div');
-          circleContent.className = 'content-circle';
-          circleContent.style.position = 'absolute';
-          circleContent.style.top = '0';
-          circleContent.style.left = '0';
-          circleContent.style.width = '100%';
-          circleContent.style.height = '100%';
-          document.body.appendChild(circleContent);
-      }
-      circleContent.style.display = 'flex';
-      
-      // Update view states
-      this._inCircleView = true;
-      this._inListView = false;
-      this.isList = false;
-      this.isListViewActive = false;
-      this.isCircleViewActive = true;
-      
-      // Animate meshes only if not coming from list view (since it's already handled in timeline)
-      if (!comingFromListView) {
-          this.switchToCircleView(comingFromListView, comingFromCarouselView);
-      }
-      
-      // Update button states
-      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
-  }
+
   
   // New helper method to finalize Circle view transition
   _finalizeCircleViewTransition() {
@@ -487,145 +363,6 @@ export default class HomeSketch{
       document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
   }
   
-  // Helper method for Carousel transition (unchanged)
-  _proceedToCarouselView(comingFromListView, comingFromCircleView) {
-      document.querySelector('.content').style.display = 'inline-flex';
-      const circleContent = document.querySelector('.content-circle');
-      if (circleContent) circleContent.style.display = 'none';
-      
-      // Update view states
-      this._inListView = false;
-      this._inCircleView = false;
-      this.isList = false;
-      this.isListViewActive = false;
-      this.isCircleViewActive = false;
-      
-      // Animate meshes (only called if not coming from list view)
-      if (!comingFromListView) {
-          this.returnToCarouselView(comingFromListView, comingFromCircleView);
-      }
-      
-      // Update button states
-      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'none');
-      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'auto');
-  }
-  
-  // Helper method for Circle transition (unchanged)
-  _proceedToCircleView(comingFromListView, comingFromCarouselView) {
-      const carouselContent = document.querySelector('.content');
-      if (carouselContent) carouselContent.style.display = 'none';
-      
-      let circleContent = document.querySelector('.content-circle');
-      if (!circleContent) {
-          circleContent = document.createElement('div');
-          circleContent.className = 'content-circle';
-          circleContent.style.position = 'absolute';
-          circleContent.style.top = '0';
-          circleContent.style.left = '0';
-          circleContent.style.width = '100%';
-          circleContent.style.height = '100%';
-          document.body.appendChild(circleContent);
-      }
-      circleContent.style.display = 'block';
-      
-      // Update view states
-      this._inCircleView = true;
-      this._inListView = false;
-      this.isList = false;
-      this.isListViewActive = false;
-      this.isCircleViewActive = true;
-      
-      // Animate meshes (only called if not coming from list view)
-      if (!comingFromListView) {
-          this.switchToCircleView(comingFromListView, comingFromCarouselView);
-      }
-      
-      // Update button states
-      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
-  }
-  
-  // Helper method for Carousel transition (unchanged)
-  _proceedToCarouselView(comingFromListView, comingFromCircleView) {
-      document.querySelector('.content').style.display = 'inline-flex';
-      const circleContent = document.querySelector('.content-circle');
-      if (circleContent) circleContent.style.display = 'none';
-      
-      // Update view states
-      this._inListView = false;
-      this._inCircleView = false;
-      this.isList = false;
-      this.isListViewActive = false;
-      this.isCircleViewActive = false;
-      
-      // Animate meshes (only called if not coming from list view)
-      if (!comingFromListView) {
-          this.returnToCarouselView(comingFromListView, comingFromCircleView);
-      }
-      
-      // Update button states
-      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'none');
-      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'auto');
-  }
-  
-  // Helper method for Circle transition
-  _proceedToCircleView(comingFromListView, comingFromCarouselView) {
-      const carouselContent = document.querySelector('.content');
-      if (carouselContent) carouselContent.style.display = 'none';
-      
-      let circleContent = document.querySelector('.content-circle');
-      if (!circleContent) {
-          circleContent = document.createElement('div');
-          circleContent.className = 'content-circle';
-          circleContent.style.position = 'absolute';
-          circleContent.style.top = '0';
-          circleContent.style.left = '0';
-          circleContent.style.width = '100%';
-          circleContent.style.height = '100%';
-          document.body.appendChild(circleContent);
-      }
-      circleContent.style.display = 'block';
-      
-      // Update view states
-      this._inCircleView = true;
-      this._inListView = false;
-      this.isList = false;
-      this.isListViewActive = false;
-      this.isCircleViewActive = true;
-      
-      // Animate meshes
-      this.switchToCircleView(comingFromListView, comingFromCarouselView);
-      
-      // Update button states
-      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'none');
-  }
-  
-  // Helper method for Carousel transition
-  _proceedToCarouselView(comingFromListView, comingFromCircleView) {
-      document.querySelector('.content').style.display = 'inline-flex';
-      const circleContent = document.querySelector('.content-circle');
-      if (circleContent) circleContent.style.display = 'none';
-      
-      // Update view states
-      this._inListView = false;
-      this._inCircleView = false;
-      this.isList = false;
-      this.isListViewActive = false;
-      this.isCircleViewActive = false;
-      
-      // Animate meshes (original method preserved)
-      this.returnToCarouselView(comingFromListView, comingFromCircleView);
-      
-      // Update button states
-      document.querySelectorAll('.first').forEach(el => el.style.pointerEvents = 'none');
-      document.querySelectorAll('.second').forEach(el => el.style.pointerEvents = 'auto');
-      document.querySelectorAll('.third').forEach(el => el.style.pointerEvents = 'auto');
-  }
 
     // Create an improved returnToCarouselView with smoother animation and texture fixing
     returnToCarouselView(fromListView = null, fromCircleView = null) {
@@ -1046,7 +783,7 @@ export default class HomeSketch{
         
         // Comprehensively disable scroll
         if (this.smoothScroll) {
-            console.log("Disabling scroll functionality");
+
             
             // 1. Remove the update listener
             if (this.scrollUpdateHandler) {
@@ -1072,7 +809,6 @@ export default class HomeSketch{
         // Increase the z-spacing between meshes to prevent clashing
         const zSpacing = 25; // Increased from 10 to 25 for better separation
         
-        console.log(`Positioning list view items at X: ${centerX}, Y: ${bottomY} (10% from bottom) with z-spacing: ${zSpacing}`);
         
         // Show list content immediately but hide text elements
         const listContent = document.querySelector('.content-list');
@@ -1099,7 +835,7 @@ export default class HomeSketch{
                 listAnime();
             },
             onComplete: () => {
-                console.log("Stack animation complete");
+
 
                 // this.setupEnhancedHoverEvents();
 
@@ -1423,9 +1159,6 @@ export default class HomeSketch{
                 uQuadSize: { value: new THREE.Vector2(300, 300) },
                 uTextureSize: { value: new THREE.Vector2(100, 100) },
                 uPositionOffset: { value: new THREE.Vector3(0, 0, 0) },
-                // Add new uniforms for cylinder bending
-                uCylinderBend: { value: 0.0 }, // Start with no bending
-                uCylinderRadius: { value: 350.0 }, // Default radius
             },
             vertexShader: vertex,
             fragmentShader: fragment,
@@ -1434,38 +1167,7 @@ export default class HomeSketch{
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         this.mesh.scale.set(300, 300, 1);
         // this.scene.add(this.mesh);
-    
-        // Background Mesh
-        this.backgroundGeometry = new THREE.PlaneGeometry(2, 2, 100, 100);
-        this.backgroundMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                time: { value: 1.0 },
-                hover: { value: new THREE.Vector2(0.5, 0.5) },
-                hoverState: { value: 0 },
-                u_resolution: { value: new THREE.Vector2(this.width, this.height) },
-                smoothSpped: { value: 1.0 }
-            },
-            vertexShader: bgvertex,
-            fragmentShader: bgfragment
-        });
-    
-        this.bgMesh = new THREE.Mesh(this.backgroundGeometry, this.backgroundMaterial);
-        this.bgMesh.scale.set(300, 300, 1);
-        this.bgMesh.position.set(1, 1, -30);
-        // this.scene.add(this.bgMesh);
 
-
-        this.circleGeometry = new THREE.CylinderGeometry(300,300, 92);
-        this.circleMaterial = new THREE.MeshNormalMaterial()
-        this.circleMesh = new THREE.Mesh(this.circleGeometry, this.circleMaterial);
-        this.circleMesh.material.wireframe = true;
-        this.circleMesh.position.set(0, 0, 0);
-        this.circleMesh.rotation.set(0, .90, 0.5);
-
-        // this.scene.add(this.circleMesh);
-
-
-    
         // Images Texture Meshes
         this.images = [...document.querySelectorAll('.js-image')];
     
@@ -1563,7 +1265,7 @@ export default class HomeSketch{
     }
 
 
-updateScrollNumber() {
+    updateScrollNumber() {
     // Only run this on home page
     if (!document.querySelector('[data-barba-namespace="home"]')) return;
     
@@ -1581,7 +1283,7 @@ updateScrollNumber() {
     } catch (error) {
         console.warn('Error updating scroll number:', error);
     }
-}
+  }
 
 
     setPosition() {
@@ -1751,7 +1453,7 @@ updateScrollNumber() {
         
         // Update shader uniforms
         this.material.uniforms.time.value = this.time;
-        this.backgroundMaterial.uniforms.time.value = this.time;
+
         
         this.materials.forEach(m => {
             m.uniforms.time.value = this.time;
@@ -1922,101 +1624,16 @@ updateScrollNumber() {
     }
 
 
-    CylinderAdd()
-    {
-        // Create geometry with initial height of 0
-        const lineG = new THREE.CylinderGeometry(0.3, 0.3, 0, 32);
-        const lineM = new THREE.MeshPhysicalMaterial({
-            color: 0xd9d9d9,
-            roughness: 0,
-            metalness: 0,
-            emissive: 0xffffff,
-            emissiveIntensity: 1,
-        });
-
-        const line = new THREE.Mesh(lineG, lineM);
-        line.rotation.x = 3;
-        line.position.y = -30;
-        line.position.z = -20;
-        line.scale.y = 0; // Start with zero scale
-        
-        // Add to scene
-        this.scene.add(line);
-        
-        // Store reference for animation
-        this.lineCylinder = line;
-        
-        // Initially hidden
-        this.lineCylinder.visible = false;
-        
-        return line;
-    }
-
-
-
-
-    // Improved fixMeshOrientation method to create a perfect cylinder surface effect
-    fixMeshOrientation() {
-        if (!this.imageStore || !this._inCircleView) return;
-        
-        console.log("Fixing mesh orientations for perfect inward-facing cylinder");
-        
-        // Get all meshes to properly face the center
-        this.imageStore.forEach((item) => {
-            if (!item._cylinderData) return;
-            
-            // Get the mesh's position relative to the center
-            const meshPosition = item.mesh.position;
-            
-            // Calculate angle from center to mesh position in the XZ plane
-            const angle = Math.atan2(meshPosition.z, meshPosition.x);
-            
-            // Reset rotation completely to avoid compounding effects
-            item.mesh.rotation.set(0, 0, 0);
-            
-            // Apply precise rotation to face directly toward center
-            // This is the key change - exactly PI (180 degrees) from the position angle
-            item.mesh.rotation.y = angle + Math.PI;
-            
-            // Store for reference
-            if (!item._cylinderData.originalRotation) {
-                item._cylinderData.originalRotation = item.mesh.rotation.clone();
-            }
-        });
-        
-        // Force an immediate render to see changes
-        if (this.renderer) {
-            this.renderer.render(this.scene, this.camera);
-        }
-    }
-
     // Update switchToCircleView to add a 360° rotation during the fan-out phase
     switchToCircleView() {
         if (!this.imageStore) return;
         
         console.log("Creating stacked origin expansion with arc transitions and 360° rotation");
         
+        
         // Show content-circle HTML element
         document.querySelector('.content-circle').style.display = 'flex';
         
-        // Make sure we have created our cylinder
-        if (!this.lineCylinder) {
-            this.CylinderAdd();
-        }
-        
-        // Make cylinder visible
-        this.lineCylinder.visible = true;
-        
-        // Animate cylinder growing from 0 to full height
-        gsap.to(this.lineCylinder.scale, {
-            y: 1, // Full scale
-            duration: 1.5,
-            ease: "power2.out",
-            onStart: () => {
-                // Make sure it's visible when animation starts
-                this.lineCylinder.visible = true;
-            }
-        });
         
         // Save original setPosition for later restoration
         if (!this._originalSetPosition) {
@@ -2048,12 +1665,9 @@ updateScrollNumber() {
         // Calculate optimal cylinder properties
         const numMeshes = this.imageStore.length;
 
-        // Get average dimensions for consistent sizing
-        const avgWidth = this.imageStore.reduce((sum, item) => sum + item.width, 0) / numMeshes;
-        const avgHeight = this.imageStore.reduce((sum, item) => sum + item.height, 0) / numMeshes;
 
         // Spacing factor for good separation
-        const spacingFactor = 1.5;
+        const spacingFactor = numMeshes * 100;
 
         // Calculate the angular spread with spacing
         const totalAngle = Math.PI * 2; // Complete circle
@@ -2061,22 +1675,22 @@ updateScrollNumber() {
         const spacedAnglePerMesh = anglePerMesh * (1 + spacingFactor);
 
         // Base radius that looks good for a typical number of meshes
-        const baseRadius = 350;
+        const baseRadius = this.width * 0.10;
 
         // Scale factor based on the number of meshes (square root provides a nice balance)
         // This means radius grows more slowly as mesh count increases
         const scaleFactor = Math.sqrt(numMeshes / 10); // Normalized to look good around 10 meshes
 
         // Calculate final radius with a minimum and maximum
-        const minRadius = 250;
-        const maxRadius = 600;
+        const minRadius = this.width * 0.25;
+        const maxRadius = this.width * 0.50;
         const radius = Math.min(maxRadius, Math.max(minRadius, baseRadius * scaleFactor));
 
         // IMPORTANT: Create the cylinder visual first to establish reference
         this.createDraggableCylinder(radius);
         
         // Define central stack position (slightly elevated for better visibility)
-        const stackPosition = new THREE.Vector3(0, 30, 0);
+        const stackPosition = new THREE.Vector3(0, 0, 0);
         
         // Pre-calculation phase - store all target positions and states
         this.imageStore.forEach((item, index) => {
@@ -2109,9 +1723,9 @@ updateScrollNumber() {
                 isHighlighted: false,
                 originalPosition: new THREE.Vector3(posX, 0, posZ),
                 targetScale: {
-                    x: item.mesh.scale.x * 0.75,
-                    y: item.mesh.scale.y * 0.75,
-                    z: 1
+                    x: item.mesh.scale.x * 0.5,
+                    y: item.mesh.scale.y * 0.5,
+                    z: 0
                 }
             };
             
@@ -2132,7 +1746,7 @@ updateScrollNumber() {
         // Create master timeline for the animation sequence
         const masterTl = gsap.timeline({
             onComplete: () => {
-                console.log("Fan-out animation complete, applying final orientation");
+
                 
                 // Apply precise facing-inward rotation after animation completes
                 this.imageStore.forEach((item) => {
@@ -2177,9 +1791,9 @@ updateScrollNumber() {
             
             // Slightly scale down while gathering
             masterTl.to(item.mesh.scale, {
-                x: item._cylinderData.targetScale.x * 0.8,
-                y: item._cylinderData.targetScale.y * 0.8,
-                z: 1,
+                x: item._cylinderData.targetScale.x * 0.50,
+                y: item._cylinderData.targetScale.y * 0.50,
+                z: 0,
                 duration: gatherDuration,
                 ease: "power2.inOut",
                 delay: gatherDelay
@@ -2241,12 +1855,7 @@ updateScrollNumber() {
                 z: item._cylinderData.originalPosition.z
             };
             
-            // Calculate 3D distance for arc height
-            const distance = Math.sqrt(
-                Math.pow(endPos.x - startPos.x, 2) + 
-                Math.pow(endPos.z - startPos.z, 2) +
-                Math.pow(endPos.y - startPos.y, 2)
-            );
+
             
             // Fan-out with 3D arc motion
             masterTl.to(item.mesh, {
@@ -2271,7 +1880,7 @@ updateScrollNumber() {
                 x: 0,
                 y: item._cylinderData.angle,
                 z: 0,
-                duration: fanOutDuration,
+                duration: 0,
                 ease: "power2.inOut",
                 delay: fanOutDelay
             }, timeOffset);
@@ -2281,8 +1890,8 @@ updateScrollNumber() {
                 x: item._cylinderData.targetScale.x,
                 y: item._cylinderData.targetScale.y,
                 z: 1,
-                duration: fanOutDuration * 0.8,
-                ease: "back.out(1.2)",
+                duration: fanOutDuration * 0.5,
+                ease: "expo.out",
                 delay: fanOutDelay
             }, timeOffset);
             
@@ -2295,7 +1904,7 @@ updateScrollNumber() {
             this.imageStore.forEach(item => {
                 if (item.material && item.material.uniforms) {
                     // Set bending amount (adjust value as needed for best visual)
-                    item.material.uniforms.uCylinderBend.value = 0.8; // 0.8 = 80% bend
+
                     item.material.uniforms.uCylinderRadius.value = radius; // Use your calculated radius
                 }
             });
@@ -2315,6 +1924,7 @@ updateScrollNumber() {
         });
         
         return masterTl;
+        
     }
 
     // Also update createDraggableCylinder to match the new radius
@@ -2762,10 +2372,8 @@ updateScrollNumber() {
         
         window.addEventListener('dblclick', this._handleDblClick);
         
-        console.log("Cylinder drag events setup complete");
     }
 
-    // Now let's properly implement the setCylinderHover and resetCylinderHover methods
     setCylinderHover(index) {
         console.log(`Setting cylinder hover for index ${index}`);
         if (!this.imageStore || !this.imageStore[index]) return;
@@ -2773,38 +2381,23 @@ updateScrollNumber() {
         const item = this.imageStore[index];
         if (!item._cylinderData) return;
           
-        // Slightly scale up for emphasis
-        gsap.to(item.mesh.scale, {
-            x: item._cylinderData.targetScale.x * 0.90,
-            y: item._cylinderData.targetScale.y * 0.90,
-            duration: 0.3,
-            ease: "back.out(1.5)"
-        });
+
     }
 
     resetCylinderHover(index) {
-        console.log(`Resetting cylinder hover for index ${index}`);
+
         if (!this.imageStore || !this.imageStore[index]) return;
         
         const item = this.imageStore[index];
         if (!item._cylinderData) return;
 
-
-        // Return to normal scale
-        gsap.to(item.mesh.scale, {
-            x: item._cylinderData.targetScale.x,
-            y: item._cylinderData.targetScale.y,
-            duration: 0.3,
-            ease: "power2.out"
-        });
     }
 
     // Add a new method to transition directly from circle view to list view
     switchFromCircleToListView() {
         if (!this.imageStore) return;
         
-        console.log('coming from circle view');
-        
+      
         // Hide circle content, show list content
         document.querySelector('.content-circle').style.display = 'none';
         document.querySelector('.content-list').style.display = 'flex';
@@ -2828,8 +2421,7 @@ updateScrollNumber() {
         // Create master timeline for the animation sequence
         const masterTl = gsap.timeline({
             onComplete: () => {
-                console.log("Circle to list transition complete");
-                
+
                 // Move meshes back to main scene from circle container
                 if (this._circleContainer) {
                     while (this._circleContainer.children.length > 0) {
