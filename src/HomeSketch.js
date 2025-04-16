@@ -156,42 +156,134 @@ export default class HomeSketch{
         this.camera.updateProjectionMatrix();
         this.camera.fov = 2 * Math.atan((this.height / 2) / 600) * 180 / Math.PI;
 
+        // Update uniforms
         this.materials.forEach(m => {
             m.uniforms.uResolution.value.x = this.width;
             m.uniforms.uResolution.value.y = this.height;
         });
 
-        // On mobile, force a more thorough update
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-            // Wait a bit for CSS to update before recalculating
-            setTimeout(() => this.forceUpdateSizing(), 50);
-        } else {
-            // Standard desktop update
-            if (this.imageStore) {
-                this.imageStore.forEach(i => {
-                    let bounds = i.img.getBoundingClientRect();
-                    i.mesh.scale.set(bounds.width, bounds.height, 1);
-                    i.top = bounds.top;
-                    i.left = bounds.left + this.smoothScroll.currentPos;
-                    i.width = bounds.width;
-                    i.height = bounds.height;
+        // Handle circle view resize specifically
+        if (this._inCircleView && this._circleContainer) {
+            // Recalculate optimal cylinder properties
+            const numMeshes = this.imageStore.length;
+            
+            // Adjust spacing factor based on screen width to maintain proportional spacing
+            const baseSpacingFactor = 0.15; // Base spacing as a proportion of screen width
+            const spacingFactor = (this.width * baseSpacingFactor) / numMeshes;
+            
+            // Calculate the angular spread with dynamic spacing
+            const totalAngle = Math.PI * 2;
+            const anglePerMesh = totalAngle / numMeshes;
+            
+            // Adjust radius based on screen size and number of meshes
+            const baseRadius = this.width * 0.25; // 25% of screen width as base
+            const scaleFactor = Math.sqrt(numMeshes / 10);
+            const minRadius = this.width * 0.25;
+            const maxRadius = this.width * 0.40;
+            const radius = Math.min(maxRadius, Math.max(minRadius, baseRadius * scaleFactor));
 
-                    i.mesh.material.uniforms.uQuadSize.value.x = bounds.width;
-                    i.mesh.material.uniforms.uQuadSize.value.y = bounds.height;
-                    i.mesh.material.uniforms.uTextureSize.value.x = bounds.width;
-                    i.mesh.material.uniforms.uTextureSize.value.y = bounds.height;
-                });
+            // Update cylinder if it exists
+            if (this._dragCylinder) {
+                this._dragCylinder.geometry.dispose();
+                this._dragCylinder.geometry = new THREE.CylinderGeometry(
+                    radius, radius, 150, 72, 4, true
+                );
             }
-        }
 
-        this.setPosition();
+            // Update positions of all meshes with proper spacing
+            this.imageStore.forEach((item, index) => {
+                if (item._cylinderData) {
+                    // Calculate angle with even distribution
+                    const angle = index * anglePerMesh;
+                    
+                    // Calculate position on cylinder using angle
+                    const posX = Math.sin(angle) * radius;
+                    const posZ = Math.cos(angle) * radius;
+
+                    // Update stored data
+                    item._cylinderData.angle = angle;
+                    item._cylinderData.originalPosition = new THREE.Vector3(posX, 0, posZ);
+
+                    // Update mesh position
+                    item.mesh.position.set(posX, 0, posZ);
+
+                    // Scale meshes based on screen size
+                    const scaleFactor = Math.min(this.width / 1920, 1) * 0.5; // Adjust scale based on screen width
+                    const targetScale = {
+                        x: item.originalWidth * scaleFactor,
+                        y: item.originalHeight * scaleFactor,
+                        z: 1
+                    };
+
+                    // Update stored scale data
+                    item._cylinderData.targetScale = targetScale;
+                    
+                    // Apply scale
+                    item.mesh.scale.set(targetScale.x, targetScale.y, 1);
+
+                    // Update rotation to face center
+                    const angleToCenter = Math.atan2(posX, posZ);
+                    item.mesh.rotation.y = angleToCenter;
+                }
+            });
+
+            // Ensure proper z-index sorting
+            this.imageStore.sort((a, b) => {
+                const posA = a.mesh.position.z;
+                const posB = b.mesh.position.z;
+                return posB - posA;
+            });
+
+            return; // Exit early since we've handled circle view
+        } 
+        // Handle list view resize
+        else if (this._inListView) {
+            const bottomY = -(this.height / 2) * 0.8;
+            const zSpacing = 25;
+            
+            this.imageStore.forEach((item, index) => {
+                item.mesh.position.set(0, bottomY, -index * zSpacing);
+                
+                if (item._originalCarouselData && item._originalCarouselData.scale) {
+                    item.mesh.scale.set(
+                        item._originalCarouselData.scale.x,
+                        item._originalCarouselData.scale.y,
+                        1
+                    );
+                }
+            });
+            
+            return;
+        }
+        // Standard carousel view update
+        else if (this.imageStore && !this._inListView && !this._inCircleView) {
+            this.imageStore.forEach(i => {
+                const bounds = i.img.getBoundingClientRect();
+                
+                // ALWAYS set scale directly from bounds in carousel view
+                i.mesh.scale.set(bounds.width, bounds.height, 1);
+                i.top = bounds.top;
+                i.left = bounds.left + (this.smoothScroll ? this.smoothScroll.currentPos : 0);
+                i.width = bounds.width;
+                i.height = bounds.height;
+
+                if (i.material.uniforms) {
+                    i.material.uniforms.uQuadSize.value.x = bounds.width;
+                    i.material.uniforms.uQuadSize.value.y = bounds.height;
+                    i.material.uniforms.uTextureSize.value.x = bounds.width;
+                    i.material.uniforms.uTextureSize.value.y = bounds.height;
+                }
+            });
+            
+            this.setPosition();
+        }
     }
 
-    setupResize(){
+    // Also update setupResize to properly bind the resize function
+    setupResize() {
+        // Remove the .bind(this) as it's creating a new function each time
         window.addEventListener('resize', () => {
-            this.resize.bind(this)();
-            // this.setupFontSizing(); 
+            this.resize();
         });
     }
 
@@ -313,7 +405,7 @@ export default class HomeSketch{
                       document.querySelector('.content').style.display = 'inline-flex';
                       if (comingFromListView) document.querySelector('.content-list').style.display = 'none';
                       if (comingFromCircleView) document.querySelector('.content-circle').style.display = 'none';
-                      this._proceedToCarouselView(comingFromListView, comingFromCircleView);
+
                   }
               });
               
@@ -410,32 +502,51 @@ export default class HomeSketch{
                 onComplete: () => {
                     console.log("Carousel transition complete");
                     
-                    // Move meshes back to main scene from circle container
+                    // Move meshes back to main scene from circle container if needed
                     if (this._circleContainer) {
                         while (this._circleContainer.children.length > 0) {
                             const child = this._circleContainer.children[0];
-                            // Skip the cylinder wireframe and helper objects
                             if (child !== this._dragCylinder && 
                                 child !== this._ringHelper && 
                                 child !== this._xAxisHelper && 
                                 child !== this._zAxisHelper) {
-                                // Get world position/rotation before removing
-                                const worldPos = new THREE.Vector3();
-                                const worldRot = new THREE.Euler();
-                                child.getWorldPosition(worldPos);
-                                child.getWorldQuaternion(new THREE.Quaternion().setFromEuler(worldRot));
-                                
-                                // Remove from container and add to scene
                                 this._circleContainer.remove(child);
                                 this.scene.add(child);
                             } else {
-                                // Just remove helpers and cylinder
                                 this._circleContainer.remove(child);
                             }
                         }
                     }
-                    
-                    // Re-enable scrolling after animation completes
+
+                    // CRITICAL: Force recalculation of sizes from DOM
+                    this.imageStore.forEach(item => {
+                        const bounds = item.img.getBoundingClientRect();
+                        
+                        // Update stored dimensions
+                        item.width = bounds.width;
+                        item.height = bounds.height;
+                        item.top = bounds.top;
+                        item.left = bounds.left;
+
+                        // IMPORTANT: Update mesh scale to match DOM exactly
+                        item.mesh.scale.set(bounds.width, bounds.height, 1);
+
+                        // Update material uniforms
+                        if (item.material.uniforms) {
+                            item.material.uniforms.uQuadSize.value.x = bounds.width;
+                            item.material.uniforms.uQuadSize.value.y = bounds.height;
+                            item.material.uniforms.uTextureSize.value.x = bounds.width;
+                            item.material.uniforms.uTextureSize.value.y = bounds.height;
+                        }
+
+                        // Clear all transition-related stored data
+                        delete item._cylinderData;
+                        delete item._carouselPosition;
+                        delete item._originalPosition;
+                        delete item._originalCarouselData; // Clear this so next transition will store fresh values
+                    });
+
+                    // Re-enable scrolling and restore original setPosition
                     this.restoreCarouselScroll();
                 }
             });
@@ -756,19 +867,22 @@ export default class HomeSketch{
         this.isListViewActive = true;
         this.isCircleViewActive = false;
         
-        // Before changing positions, store original carousel data for each item
+        // Store original carousel data ONLY if not already stored
         this.imageStore.forEach(item => {
-            item._originalCarouselData = {
-                x: item.mesh.position.x,
-                y: item.mesh.position.y,
-                z: item.mesh.position.z,
-                rotation: item.mesh.rotation.z,
-                scale: {
-                    x: item.mesh.scale.x,
-                    y: item.mesh.scale.y,
-                    z: item.mesh.scale.z
-                }
-            };
+            if (!item._originalCarouselData) {
+                const bounds = item.img.getBoundingClientRect();
+                item._originalCarouselData = {
+                    x: item.mesh.position.x,
+                    y: item.mesh.position.y,
+                    z: item.mesh.position.z,
+                    rotation: item.mesh.rotation.z,
+                    scale: {
+                        x: bounds.width,  // Use bounds directly instead of current scale
+                        y: bounds.height, // Use bounds directly instead of current scale
+                        z: 1
+                    }
+                };
+            }
         });
     
         console.log("Switching to list view - disabling scroll");
@@ -1905,7 +2019,7 @@ export default class HomeSketch{
                 if (item.material && item.material.uniforms) {
                     // Set bending amount (adjust value as needed for best visual)
 
-                    item.material.uniforms.uCylinderRadius.value = radius; // Use your calculated radius
+                    // item.material.uniforms.uCylinderRadius.value = radius; // Use your calculated radius
                 }
             });
         }, null, gatherDuration + pauseDuration * 0.5);
@@ -2556,16 +2670,35 @@ export default class HomeSketch{
                 delay: fanOutDelay
             }, timeOffset);
             
-            // Restore scale to regular size
+            // Use a fixed scale based on original dimensions
+            const targetScale = {
+                x: item.originalWidth,  // Use the original width stored when mesh was created
+                y: item.originalHeight, // Use the original height stored when mesh was created
+                z: 1
+            };
+            
+            // Apply the scale
             masterTl.to(item.mesh.scale, {
-                x: item.mesh.scale.x / 0.8, // Compensate for the earlier scale down
-                y: item.mesh.scale.y / 0.8,
-                z: 1,
+                x: targetScale.x,
+                y: targetScale.y,
+                z: targetScale.z,
                 duration: fanOutDuration,
-                ease: "power1.inOut",
-                delay: fanOutDelay
+                ease: "power2.out",
+                delay: fanOutDelay,
+                onComplete: () => {
+                    // Update material uniforms to match scale
+                    if (item.material.uniforms) {
+                        item.material.uniforms.uQuadSize.value.x = targetScale.x;
+                        item.material.uniforms.uQuadSize.value.y = targetScale.y;
+                        item.material.uniforms.uTextureSize.value.x = targetScale.x;
+                        item.material.uniforms.uTextureSize.value.y = targetScale.y;
+                    }
+                }
             }, timeOffset);
 
+            // Store the dimensions we used
+            item.width = targetScale.x;
+            item.height = targetScale.y;
         });
         
         // Set current visible mesh for list view
