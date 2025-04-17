@@ -1353,26 +1353,33 @@ export default class HomeSketch{
             });
         })).then(imageStore => {
             this.imageStore = imageStore;
-            this.setPosition(); // Set initial positions with original state
-    
-            // Add initial animation for each mesh
-            imageStore.forEach(({ material }, index) => {
-                const delay = 0.02 + index * 0.16;
-                gsap.fromTo(material.uniforms.uPositionOffset.value,
-                    { y: 0, x: 10, z: 0 },
-                    {
-                        y: 0,
-                        x: 0,
-                        z: 0,
-                        duration: 1.8,
-                        delay: delay,
-                        ease: "expo.out",
-                        onUpdate: () => {
-                            material.uniforms.uPositionOffset.needsUpdate = true;
-                        }
-                    }
-                );
+            
+            // Add the animation offset property
+            this._initialAnimationOffset = 1000;
+            
+            // Animate position offset to zero
+            gsap.to(this, {
+                _initialAnimationOffset: 0,
+                duration: 1.8,
+                ease: "expo.out"
             });
+            
+            // Use your existing scale animation which is already good
+            imageStore.forEach(({ mesh, material }, index) => {
+                const delay = 0.02 + index * 0.16;
+
+                const tl = gsap.timeline()
+                
+                tl.from(mesh.scale, {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    duration: 1.8,
+                    ease: 'expo.out',
+                    delay: delay
+                });
+            });
+            
         }).catch(error => {
             console.error('Error loading images:', error);
         });
@@ -1408,7 +1415,7 @@ export default class HomeSketch{
                 // Use optional chaining and default to 0 if currentPos is undefined
                 const currentPos = this.smoothScroll?.currentPos || 0;
                 
-                o.mesh.position.x = -currentPos + o.left - this.width / 2 + o.width / 2;
+                o.mesh.position.x = -currentPos + o.left - this.width / 2 + o.width / 2 + (this._initialAnimationOffset || 0);
                 o.mesh.position.y = -o.top + this.height / 2 - o.height / 2;
     
                 lastMeshRight = Math.max(lastMeshRight, o.mesh.position.x + o.width / 2);
@@ -2511,10 +2518,18 @@ export default class HomeSketch{
     switchFromCircleToListView() {
         if (!this.imageStore) return;
         
-      
         // Hide circle content, show list content
         document.querySelector('.content-circle').style.display = 'none';
         document.querySelector('.content-list').style.display = 'flex';
+        
+        // Prepare the list content - hide text elements initially for animation
+        const listContent = document.querySelector('.content-list');
+        if (listContent) {
+            // Hide text elements initially for animation
+            listContent.querySelectorAll('.indexH2.list, .indexP.list, .indexSpan.list').forEach(el => {
+                gsap.set(el, { opacity: 0 });
+            });
+        }
         
         // Clean up cylinder events
         this.cleanupCylinderEvents();
@@ -2534,8 +2549,11 @@ export default class HomeSketch{
         
         // Create master timeline for the animation sequence
         const masterTl = gsap.timeline({
+            onStart: () => {
+                // Trigger the text animations for list view
+                listAnime();
+            },
             onComplete: () => {
-
                 // Move meshes back to main scene from circle container
                 if (this._circleContainer) {
                     while (this._circleContainer.children.length > 0) {
@@ -2563,6 +2581,13 @@ export default class HomeSketch{
                 
                 // Set up list-specific interactions
                 this.setupEnhancedHoverEvents();
+                
+                // Update state flags
+                this._inListView = true;
+                this._inCircleView = false;
+                this.isList = true;
+                this.isListViewActive = true;
+                this.isCircleViewActive = false;
             }
         });
         
@@ -2635,7 +2660,6 @@ export default class HomeSketch{
                 ease: "power2.inOut",
                 delay: gatherDelay
             }, 0);
-            
         });
         
         // PHASE 2: Fan out to list view positions (similar to switchToListView)
